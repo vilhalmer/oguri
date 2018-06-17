@@ -10,11 +10,13 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include <assert.h>
+#include <errno.h>
 #include <gdk/gdk.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/timerfd.h>
 #include "oguri.h"
 #include "cairo.h"
 #include "xdg-output-unstable-v1-client-protocol.h"
@@ -339,9 +341,67 @@ int main(int argc, char * argv[]) {
 	wl_surface_commit(oguri.surface);
 	wl_display_roundtrip(oguri.display);
 
+	// Set up our poll descriptors.
+	oguri.wayland_events = (struct pollfd){
+		.fd = wl_display_get_fd(oguri.display),
+		.events = POLLIN,
+	};
+	oguri.timer_events = (struct pollfd){
+		.fd = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC),
+		.events = POLLIN,
+	};
+
 	// Run forever, for some value of forever.
+	int polled;
+	struct pollfd events[] = {
+		oguri.wayland_events,
+		oguri.timer_events,
+	};
+	static const size_t event_count = 2;
+
 	oguri.run = true;
-	while (wl_display_dispatch(oguri.display) != -1 && oguri.run);
+	while (oguri.run) {
+		while (wl_display_prepare_read(oguri.display) != 0) {
+			wl_display_dispatch_pending(oguri.display);
+		}
+		wl_display_flush(oguri.display);
+
+		polled = poll(events, event_count, -1);
+		if (polled < 0) {
+			wl_display_cancel_read(oguri.display);
+			if (errno == EINTR) {
+				// Keep going if this was a signal interrupt. The signal
+				// handler will set oguri.run to false if appropriate.
+				continue;
+			}
+			fprintf(stderr, "Poll failure: %s\n", strerror(-polled));
+			break;
+		}
+
+		// Read wayland events first so we can handle any resizing, etc, before
+		// attempting to draw again.
+		if (oguri.wayland_events.revents & POLLIN) {
+			if (wl_display_read_events(oguri.display) != 0) {
+				fprintf(stderr, "Failed to read Wayland events: %s\n",
+					strerror(errno));
+				break;
+			}
+		}
+		else {
+			wl_display_cancel_read(oguri.display);
+		}
+
+		// At this point, we may have been shut down. Might as well not waste
+		// time drawing.
+		if (!oguri.run) {
+			break;
+		}
+
+		// Now see if we need to draw the next frame.
+		if (oguri.timer_events.revents & POLLIN) {
+
+		}
+	}
 
 	struct oguri_output * tmp;
 	wl_list_for_each_safe(output, tmp, &oguri.outputs, link) {

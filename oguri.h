@@ -1,6 +1,7 @@
 #ifndef _OGURI_H
 #define _OGURI_H
 
+#include <poll.h>
 #include <wayland-client.h>
 #include <gdk-pixbuf/gdk-pixbuf.h>
 #include "cairo.h"
@@ -10,6 +11,8 @@ struct oguri_state {
 	char * image_path;
 
 	bool run;
+	struct pollfd wayland_events;
+	struct pollfd timer_events;
 
 	struct wl_display * display;
 	struct wl_compositor * compositor;
@@ -30,6 +33,7 @@ struct oguri_state {
 	GdkPixbufAnimation * image;
 	GdkPixbufAnimationIter * frame_iter;
 
+	// Caches the latest frame from the source
 	cairo_surface_t * source_surface;
 	cairo_t * source_cairo;
 
