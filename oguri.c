@@ -38,24 +38,27 @@ void scale_image_onto(
 	double window_ratio = (double)buffer_width / buffer_height;
 	double bg_ratio = width / height;
 
+	double scale;
 	if (window_ratio > bg_ratio) {
-		double scale = (double)buffer_width / width;
+		scale = (double)buffer_width / width;
 		cairo_scale(cairo, scale, scale);
 		cairo_set_source_surface(cairo, source,
 				0, (double)buffer_height / 2 / scale - height / 2);
 	} else {
-		double scale = (double)buffer_height / height;
+		scale = (double)buffer_height / height;
 		cairo_scale(cairo, scale, scale);
 		cairo_set_source_surface(cairo, source,
 				(double)buffer_width / 2 / scale - width / 2, 0);
 	}
+
+	cairo_scale(cairo, 1 / scale, 1 / scale);
 }
 
 void render_frame(struct oguri_state * oguri) {
 	struct oguri_buffer * buffer = next_buffer(oguri);
 	cairo_t *cairo = buffer->cairo;
 
-	GdkPixbuf * image = gdk_pixbuf_animation_get_static_image(oguri->image);
+	GdkPixbuf * image = gdk_pixbuf_animation_iter_get_pixbuf(oguri->frame_iter);
 
 	// Draw the frame into our source surface, at its native size.
 	gdk_cairo_set_source_pixbuf(oguri->source_cairo, image, 0, 0);
@@ -435,6 +438,7 @@ int main(int argc, char * argv[]) {
 				break;
 			}
 
+			gdk_pixbuf_animation_iter_advance(oguri.frame_iter, NULL);
 			int delay = gdk_pixbuf_animation_iter_get_delay_time(
 					oguri.frame_iter);
 			if (delay < 0) {
