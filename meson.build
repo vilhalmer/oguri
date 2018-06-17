@@ -23,6 +23,7 @@ executable(
 	'oguri',
 	files([
 		'oguri.c',
+		'buffers.c',
 	]),
 	dependencies: [
 		cairo,

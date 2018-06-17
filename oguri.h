@@ -41,20 +41,6 @@ struct oguri_output {
 	int32_t scale;
 };
 
-struct oguri_buffer {
-	struct wl_list link;  // oguri_state::buffer_ring;
-
-	bool busy;
-
-	struct wl_buffer * backing;
-	cairo_t * cairo;
-	cairo_surface_t * cairo_surface;
-
-	void * data;
-};
-
-struct oguri_buffer * next_buffer(struct oguri_state * oguri);
-
 // Helpers to define no-op listener members without angering the compiler:
 
 #define _incomplete_listener \
