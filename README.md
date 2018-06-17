@@ -42,3 +42,5 @@ wallpaper tool to even work.
 Equal credit goes to [mako](https://github.com/emersion/mako), which provided
 just as much code to ~~steal~~ reference (and which I use, hack on, and
 recommend).
+
+![Oguri Cap](oguri-cap.gif)
