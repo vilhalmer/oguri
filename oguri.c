@@ -64,10 +64,10 @@ void render_frame(struct oguri_state * oguri) {
 	gdk_cairo_set_source_pixbuf(source_cairo, image, 0, 0);
 	cairo_paint(source_cairo);
 
-	// Now convert that surface into a pattern that we can draw onto the actual
-	// surface at the correct scale.
-	//cairo_pattern_t * pattern = cairo_pattern_create_for_surface(source);
+	// Now scale that source surface onto the destination.
 	scale_image(cairo, source, oguri->width, oguri->height);
+
+	cairo_pattern_set_filter(cairo_get_source(cairo), CAIRO_FILTER_NEAREST);
 	cairo_paint(cairo);
 
 	wl_surface_set_buffer_scale(oguri->surface, oguri->selected_output->scale);
