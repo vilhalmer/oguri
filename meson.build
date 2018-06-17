@@ -32,4 +32,5 @@ executable(
 		wayland_client,
 		client_protos,
 	],
+	install: true,
 )
