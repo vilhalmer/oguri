@@ -441,11 +441,10 @@ int main(int argc, char * argv[]) {
 			gdk_pixbuf_animation_iter_advance(oguri.frame_iter, NULL);
 			int delay = gdk_pixbuf_animation_iter_get_delay_time(
 					oguri.frame_iter);
-			render_frame(&oguri);
-			if (delay < 0) {
-				continue;  // Static image, no need to do this again.
+			if (delay > 0) {
+				set_timer_milliseconds(fd, (unsigned int)delay);
 			}
-			set_timer_milliseconds(fd, (unsigned int)delay);
+			render_frame(&oguri);
 		}
 	}
 
