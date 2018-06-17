@@ -180,7 +180,7 @@ static void layer_surface_configure(
 		fprintf(stderr, "No buffers, woe is me\n");
 	}
 
-	render_frame(oguri);
+	//render_frame(oguri);  // TODO: Testing timer
 }
 
 static void layer_surface_closed(
@@ -250,6 +250,26 @@ static const struct wl_registry_listener registry_listener = {
 	// no-ops:
 	.global_remove = handle_global_remove,
 };
+
+//
+// Timers
+//
+
+bool set_timer_milliseconds(int timer_fd, unsigned int delay) {
+	struct itimerspec spec = {
+		.it_value = (struct timespec) {
+			.tv_sec = delay / 1000,
+			.tv_nsec = (delay % 1000) * (long)1000000,
+		},
+	};
+	int ret = timerfd_settime(timer_fd, 0, &spec, NULL);
+	if (ret < 0) {
+		fprintf(stderr, "Timer error: %s\n", strerror(errno));
+		return false;
+	}
+
+	return true;
+}
 
 //
 // Main
@@ -342,22 +362,25 @@ int main(int argc, char * argv[]) {
 	wl_display_roundtrip(oguri.display);
 
 	// Set up our poll descriptors.
-	oguri.wayland_events = (struct pollfd){
-		.fd = wl_display_get_fd(oguri.display),
-		.events = POLLIN,
-	};
-	oguri.timer_events = (struct pollfd){
-		.fd = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC),
-		.events = POLLIN,
+	int polled = 0;
+	struct pollfd events[] = {
+		[OGURI_WAYLAND_EVENT] = (struct pollfd) {
+			.fd = wl_display_get_fd(oguri.display),
+			.events = POLLIN,
+		},
+		[OGURI_TIMER_EVENT] = (struct pollfd) {
+			.fd = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC),
+			.events = POLLIN,
+		}
 	};
 
-	// Run forever, for some value of forever.
-	int polled;
-	struct pollfd events[] = {
-		oguri.wayland_events,
-		oguri.timer_events,
-	};
-	static const size_t event_count = 2;
+	// Prepare the animation iterator with the current time and imediately
+	// schedule it for display.
+	oguri.frame_iter = gdk_pixbuf_animation_get_iter(oguri.image, NULL);
+
+	if (!set_timer_milliseconds(events[OGURI_TIMER_EVENT].fd, 1)) {  // ASAP
+		fprintf(stderr, "Unable to schedule first timer\n");
+	}
 
 	oguri.run = true;
 	while (oguri.run) {
@@ -366,7 +389,7 @@ int main(int argc, char * argv[]) {
 		}
 		wl_display_flush(oguri.display);
 
-		polled = poll(events, event_count, -1);
+		polled = poll(events, OGURI_EVENT_COUNT, -1);
 		if (polled < 0) {
 			wl_display_cancel_read(oguri.display);
 			if (errno == EINTR) {
@@ -380,7 +403,7 @@ int main(int argc, char * argv[]) {
 
 		// Read wayland events first so we can handle any resizing, etc, before
 		// attempting to draw again.
-		if (oguri.wayland_events.revents & POLLIN) {
+		if (events[OGURI_WAYLAND_EVENT].revents & POLLIN) {
 			if (wl_display_read_events(oguri.display) != 0) {
 				fprintf(stderr, "Failed to read Wayland events: %s\n",
 					strerror(errno));
@@ -398,8 +421,27 @@ int main(int argc, char * argv[]) {
 		}
 
 		// Now see if we need to draw the next frame.
-		if (oguri.timer_events.revents & POLLIN) {
+		if (events[OGURI_TIMER_EVENT].revents & POLLIN) {
+			int fd = events[OGURI_TIMER_EVENT].fd;
 
+			uint64_t expirations;
+			ssize_t n = read(
+					events[OGURI_TIMER_EVENT].fd,
+					&expirations,
+					sizeof(expirations));
+
+			if (n < 0) {
+				fprintf(stderr, "Failed to read timer events\n");
+				break;
+			}
+
+			int delay = gdk_pixbuf_animation_iter_get_delay_time(
+					oguri.frame_iter);
+			if (delay < 0) {
+				continue;  // Static image, no need to do this again.
+			}
+			set_timer_milliseconds(fd, (unsigned int)delay);
+			render_frame(&oguri);
 		}
 	}
 

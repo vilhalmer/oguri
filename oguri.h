@@ -6,13 +6,18 @@
 #include <gdk-pixbuf/gdk-pixbuf.h>
 #include "cairo.h"
 
+enum oguri_events {
+	OGURI_WAYLAND_EVENT,
+	OGURI_TIMER_EVENT,
+	OGURI_EVENT_COUNT,  // last
+};
+
 struct oguri_state {
 	char * output_name;
 	char * image_path;
 
 	bool run;
-	struct pollfd wayland_events;
-	struct pollfd timer_events;
+	struct pollfd events[OGURI_EVENT_COUNT];
 
 	struct wl_display * display;
 	struct wl_compositor * compositor;
