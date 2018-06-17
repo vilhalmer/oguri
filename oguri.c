@@ -23,11 +23,51 @@
 #include "buffers.h"
 
 
+void scale_image(
+		cairo_t * cairo,
+		cairo_surface_t * source,
+		int32_t buffer_width,
+		int32_t buffer_height) {
+	// TODO: I guess I should implement the other scaling modes as well even
+	// though fill is the only correct one.
+	double width = cairo_image_surface_get_width(source);
+	double height = cairo_image_surface_get_height(source);
+
+	double window_ratio = (double)buffer_width / buffer_height;
+	double bg_ratio = width / height;
+
+	if (window_ratio > bg_ratio) {
+		double scale = (double)buffer_width / width;
+		cairo_scale(cairo, scale, scale);
+		cairo_set_source_surface(cairo, source,
+				0, (double)buffer_height / 2 / scale - height / 2);
+	} else {
+		double scale = (double)buffer_height / height;
+		cairo_scale(cairo, scale, scale);
+		cairo_set_source_surface(cairo, source,
+				(double)buffer_width / 2 / scale - width / 2, 0);
+	}
+}
+
 void render_frame(struct oguri_state * oguri) {
 	struct oguri_buffer * buffer = next_buffer(oguri);
 	cairo_t *cairo = buffer->cairo;
-	gdk_cairo_set_source_pixbuf(
-			cairo, gdk_pixbuf_animation_get_static_image(oguri->image), 0, 0);
+
+	GdkPixbuf * image = gdk_pixbuf_animation_get_static_image(oguri->image);
+
+	// Generate a temporary surface to draw the pixbuf into at its native size.
+	cairo_surface_t * source = cairo_image_surface_create(CAIRO_FMT,
+			gdk_pixbuf_get_width(image),
+			gdk_pixbuf_get_height(image));
+	cairo_t * source_cairo = cairo_create(source);
+
+	gdk_cairo_set_source_pixbuf(source_cairo, image, 0, 0);
+	cairo_paint(source_cairo);
+
+	// Now convert that surface into a pattern that we can draw onto the actual
+	// surface at the correct scale.
+	//cairo_pattern_t * pattern = cairo_pattern_create_for_surface(source);
+	scale_image(cairo, source, oguri->width, oguri->height);
 	cairo_paint(cairo);
 
 	wl_surface_set_buffer_scale(oguri->surface, oguri->selected_output->scale);

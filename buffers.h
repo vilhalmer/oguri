@@ -1,6 +1,8 @@
 #ifndef _OGURI_BUFFERS_H
 #define _OGURI_BUFFERS_H
 
+#define CAIRO_FMT CAIRO_FORMAT_ARGB32
+
 #include <wayland-client.h>
 #include "cairo.h"
 
