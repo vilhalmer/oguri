@@ -1,14 +1,20 @@
 # oguri
 ## A very nice animated wallpaper tool for Wayland compositors
 
-    Usage:
-    oguri <display> <image>
+	Usage:
+	oguri <display> <image>
 
 ## Features
 
 - Displays a gif on your desktop
 - That's all
 - (ok, it can actually display static images too)
+
+## Building
+
+	meson build
+	ninja -C build
+	build/oguri
 
 ## Testing
 
