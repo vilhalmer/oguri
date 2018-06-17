@@ -23,7 +23,7 @@
 #include "buffers.h"
 
 
-void scale_image(
+void scale_image_onto(
 		cairo_t * cairo,
 		cairo_surface_t * source,
 		int32_t buffer_width,
@@ -55,17 +55,12 @@ void render_frame(struct oguri_state * oguri) {
 
 	GdkPixbuf * image = gdk_pixbuf_animation_get_static_image(oguri->image);
 
-	// Generate a temporary surface to draw the pixbuf into at its native size.
-	cairo_surface_t * source = cairo_image_surface_create(CAIRO_FMT,
-			gdk_pixbuf_get_width(image),
-			gdk_pixbuf_get_height(image));
-	cairo_t * source_cairo = cairo_create(source);
-
-	gdk_cairo_set_source_pixbuf(source_cairo, image, 0, 0);
-	cairo_paint(source_cairo);
+	// Draw the frame into our source surface, at its native size.
+	gdk_cairo_set_source_pixbuf(oguri->source_cairo, image, 0, 0);
+	cairo_paint(oguri->source_cairo);
 
 	// Now scale that source surface onto the destination.
-	scale_image(cairo, source, oguri->width, oguri->height);
+	scale_image_onto(cairo, oguri->source_surface, oguri->width, oguri->height);
 
 	cairo_pattern_set_filter(cairo_get_source(cairo), CAIRO_FILTER_NEAREST);
 	cairo_paint(cairo);
@@ -276,6 +271,11 @@ int main(int argc, char * argv[]) {
 	if (!oguri_load_image(&oguri)) {
 		return 2;
 	}
+
+	oguri.source_surface = cairo_image_surface_create(CAIRO_FMT,
+			gdk_pixbuf_animation_get_width(oguri.image),
+			gdk_pixbuf_animation_get_height(oguri.image));
+	oguri.source_cairo = cairo_create(oguri.source_surface);
 
 	oguri.display = wl_display_connect(NULL);
 	assert(oguri.display);

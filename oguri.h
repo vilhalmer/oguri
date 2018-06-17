@@ -30,6 +30,9 @@ struct oguri_state {
 	GdkPixbufAnimation * image;
 	GdkPixbufAnimationIter * frame_iter;
 
+	cairo_surface_t * source_surface;
+	cairo_t * source_cairo;
+
 	struct wl_list buffer_ring;  // oguri_buffer::link
 };
 
