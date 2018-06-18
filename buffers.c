@@ -66,6 +66,7 @@ struct oguri_buffer * oguri_allocate_buffer(struct oguri_state * oguri) {
 
 	wl_shm_pool_destroy(pool);
 	close(fd);
+	unlink(name);
 
 	buffer->data = data;
 	buffer->cairo_surface = cairo_image_surface_create_for_data(
