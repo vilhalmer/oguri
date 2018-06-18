@@ -278,10 +278,17 @@ bool set_timer_milliseconds(int timer_fd, unsigned int delay) {
 // Main
 //
 
-static const char usage[] = "Usage: oguri <output> <path>\n";
+static const char usage[] = "Usage: oguri [-s] <output> <path>\n";
+
+static bool parse_int(const char *s, int *out) {
+	errno = 0;
+	char *end;
+	*out = (int)strtol(s, &end, 10);
+	return errno == 0 && end[0] == '\0';
+}
 
 int main(int argc, char * argv[]) {
-	if (argc != 3) {
+	if (argc < 3) {
 		printf(usage);
 		return 1;
 	}
@@ -290,8 +297,20 @@ int main(int argc, char * argv[]) {
 	wl_list_init(&oguri.outputs);
 	wl_list_init(&oguri.buffer_ring);
 
-	oguri.output_name = argv[1];
-	oguri.image_path = argv[2];
+	bool swaybg_compat = false;
+
+	int argi = 1;
+	if (strcmp(argv[argi], "-s") == 0) {
+		swaybg_compat = true;
+		++argi;
+	}
+
+	oguri.output_name = argv[argi++];
+	oguri.image_path = argv[argi++];
+
+	if (argi < argc && swaybg_compat) {
+		fprintf(stderr, "Note: Scaling modes are not yet implemented\n");
+	}
 
 	if (!oguri_load_image(&oguri)) {
 		return 2;
@@ -313,23 +332,45 @@ int main(int argc, char * argv[]) {
 	// Second roundtrip to get output properties.
 	wl_display_roundtrip(oguri.display);
 
-	// Fetch the names of each available output so we can decide which one we
-	// were instructed to draw onto.
+	// Parse the requested output as a number if we're in swaybg mode.
+	// Note that we'll still fall back to parsing it as a name, even though
+	// we'd never expect to get that from sway.
+	int output_number = -1;
 	struct oguri_output * output;
-	wl_list_for_each(output, &oguri.outputs, link) {
-		struct zxdg_output_v1 * xdg_output = zxdg_output_manager_v1_get_xdg_output(
-				oguri.output_manager, output->output);
-		zxdg_output_v1_add_listener(xdg_output, &xdg_output_listener, output);
-	}
-	wl_display_roundtrip(oguri.display);
 
-	// Now we can look for the one we wanted.
-	wl_list_for_each(output, &oguri.outputs, link) {
-		if (strcmp(output->name, oguri.output_name) == 0) {
-			oguri.selected_output = output;
-			break;
+	if (swaybg_compat && parse_int(oguri.output_name, &output_number)) {
+		int i = 0;
+		wl_list_for_each(output, &oguri.outputs, link) {
+			if (i == output_number) {
+				oguri.selected_output = output;
+				break;
+			}
+			++i;
 		}
 	}
+
+	// If the output wasn't a number, we have to look up all the names.
+	if (!oguri.selected_output) {
+		// Fetch the names of each available output so we can decide which one
+		// we were instructed to draw onto.
+		wl_list_for_each(output, &oguri.outputs, link) {
+			struct zxdg_output_v1 * xdg_output = zxdg_output_manager_v1_get_xdg_output(
+					oguri.output_manager, output->output);
+			zxdg_output_v1_add_listener(
+					xdg_output, &xdg_output_listener, output);
+		}
+		wl_display_roundtrip(oguri.display);
+
+		// Now we can look for the one we wanted.
+		wl_list_for_each(output, &oguri.outputs, link) {
+			if (strcmp(output->name, oguri.output_name) == 0) {
+				oguri.selected_output = output;
+				break;
+			}
+		}
+	}
+
+	// If we still haven't found a matching output, RIP.
 	if (!oguri.selected_output) {
 		fprintf(stderr, "Could not find an output named '%s'\n",
 				oguri.output_name);

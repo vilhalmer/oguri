@@ -2,11 +2,16 @@
 ## A very nice animated wallpaper tool for Wayland compositors
 
 	Usage:
-	oguri <output> <image>
+	oguri [-s] <output> <image>
 
 `<output>` is the `xdg-output-unstable-v1` name of an output. If you're using
 `sway`, output names can be found using `swaymsg -t get_outputs`. Some
 examples: `HDMI-A-1`, `LVDS-1`.
+
+Using `-s` enables `swaybg` compatibility mode, so that you can integrate oguri
+with sway:
+
+	swaybg_command oguri -s
 
 ## Features
 
