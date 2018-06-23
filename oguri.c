@@ -38,6 +38,8 @@ void scale_image_onto(
 	double window_ratio = (double)buffer_width / buffer_height;
 	double bg_ratio = width / height;
 
+	cairo_save(cairo);
+
 	double scale;
 	if (window_ratio > bg_ratio) {
 		scale = (double)buffer_width / width;
@@ -51,7 +53,10 @@ void scale_image_onto(
 				(double)buffer_width / 2 / scale - width / 2, 0);
 	}
 
-	cairo_scale(cairo, 1 / scale, 1 / scale);
+	cairo_pattern_set_filter(cairo_get_source(cairo), CAIRO_FILTER_NEAREST);
+	cairo_paint(cairo);
+
+	cairo_restore(cairo);
 }
 
 void render_frame(struct oguri_state * oguri) {
@@ -66,9 +71,6 @@ void render_frame(struct oguri_state * oguri) {
 
 	// Now scale that source surface onto the destination.
 	scale_image_onto(cairo, oguri->source_surface, oguri->width, oguri->height);
-
-	cairo_pattern_set_filter(cairo_get_source(cairo), CAIRO_FILTER_NEAREST);
-	cairo_paint(cairo);
 
 	wl_surface_set_buffer_scale(oguri->surface, oguri->selected_output->scale);
 	wl_surface_attach(oguri->surface, buffer->backing, 0, 0);
