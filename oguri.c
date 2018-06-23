@@ -25,6 +25,19 @@
 #include "buffers.h"
 
 
+G_DEFINE_QUARK(oguri_new_frame, oguri_new_frame);
+
+bool oguri_is_first_cycle(GdkPixbuf * image) {
+	return g_object_get_qdata(G_OBJECT(image), oguri_new_frame_quark()) ==
+		&oguri_is_first_cycle;
+}
+
+void oguri_mark_first_cycle(GdkPixbuf * image) {
+	g_object_set_qdata(
+			G_OBJECT(image), oguri_new_frame_quark(), &oguri_is_first_cycle);
+}
+
+
 void scale_image_onto(
 		cairo_t * cairo,
 		cairo_surface_t * source,
@@ -117,6 +130,15 @@ bool oguri_load_image(struct oguri_output * output, const char * path) {
 	}
 
 	output->frame_iter = gdk_pixbuf_animation_get_iter(output->image, NULL);
+	GdkPixbuf * first = gdk_pixbuf_animation_iter_get_pixbuf(output->frame_iter);
+
+	// This is undocumented at best, but the first time through the animation,
+	// every frame is stored in the same pixbuf object. This means that we can
+	// figure out when we've completed an entire cycle by tracking this object
+	// via qdata. There is no supported way to determine when you've completed
+	// a cycle, so this will have to do.
+	oguri_mark_first_cycle(first);
+
 	return true;
 }
 
@@ -213,8 +235,6 @@ static void layer_surface_configure(
 	if (!oguri_allocate_buffers(output)) {
 		fprintf(stderr, "No buffers, woe is me\n");
 	}
-
-	render_frame(output);
 }
 
 static void layer_surface_closed(
