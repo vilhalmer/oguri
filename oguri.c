@@ -454,10 +454,6 @@ int main(int argc, char * argv[]) {
 		}
 	};
 
-	// Prepare the animation iterator with the current time and imediately
-	// schedule it for display.
-	output->frame_iter = gdk_pixbuf_animation_get_iter(output->image, NULL);
-
 	if (!set_timer_milliseconds(events[OGURI_TIMER_EVENT].fd, 1)) {  // ASAP
 		fprintf(stderr, "Unable to schedule first timer\n");
 	}
