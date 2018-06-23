@@ -12,6 +12,18 @@ enum oguri_events {
 	OGURI_EVENT_COUNT,  // last
 };
 
+enum oguri_anchor_x {
+	OGURI_CENTER_X = 0,
+	OGURI_LEFT,
+	OGURI_RIGHT,
+};
+
+enum oguri_anchor_y {
+	OGURI_CENTER_Y = 0,
+	OGURI_TOP,
+	OGURI_BOTTOM,
+};
+
 struct oguri_state {
 	char * output_name;
 	char * image_path;

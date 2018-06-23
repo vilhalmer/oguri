@@ -17,11 +17,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/timerfd.h>
-#include "oguri.h"
 #include "cairo.h"
 #include "xdg-output-unstable-v1-client-protocol.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
+#include "oguri.h"
 #include "buffers.h"
 
 
@@ -29,7 +29,9 @@ void scale_image_onto(
 		cairo_t * cairo,
 		cairo_surface_t * source,
 		int32_t buffer_width,
-		int32_t buffer_height) {
+		int32_t buffer_height,
+		enum oguri_anchor_x anchor_x,
+		enum oguri_anchor_y anchor_y) {
 	// TODO: I guess I should implement the other scaling modes as well even
 	// though fill is the only correct one.
 	double width = cairo_image_surface_get_width(source);
@@ -44,13 +46,39 @@ void scale_image_onto(
 	if (window_ratio > bg_ratio) {
 		scale = (double)buffer_width / width;
 		cairo_scale(cairo, scale, scale);
-		cairo_set_source_surface(cairo, source,
-				0, (double)buffer_height / 2 / scale - height / 2);
+
+		double offset = 0;
+		switch (anchor_y) {
+		case OGURI_CENTER_Y:
+			offset = ((double)buffer_height / 2 / scale) - (height / 2);
+			break;
+		case OGURI_TOP:
+			offset = 0.0;
+			break;
+		case OGURI_BOTTOM:
+			offset = ((double)buffer_height / scale) - height;
+			break;
+		}
+
+		cairo_set_source_surface(cairo, source, 0, offset);
 	} else {
 		scale = (double)buffer_height / height;
 		cairo_scale(cairo, scale, scale);
-		cairo_set_source_surface(cairo, source,
-				(double)buffer_width / 2 / scale - width / 2, 0);
+
+		double offset = 0;
+		switch (anchor_x) {
+		case OGURI_CENTER_X:
+			offset = ((double)buffer_width / 2 / scale) - (width / 2);
+			break;
+		case OGURI_LEFT:
+			offset = 0.0;
+			break;
+		case OGURI_RIGHT:
+			offset = ((double)buffer_width / scale) - width;
+			break;
+		}
+
+		cairo_set_source_surface(cairo, source, offset, 0);
 	}
 
 	cairo_pattern_set_filter(cairo_get_source(cairo), CAIRO_FILTER_NEAREST);
@@ -70,7 +98,9 @@ void render_frame(struct oguri_output * output) {
 	cairo_paint(output->source_cairo);
 
 	// Now scale that source surface onto the destination.
-	scale_image_onto(cairo, output->source_surface, output->width, output->height);
+	scale_image_onto(
+			cairo, output->source_surface, output->width, output->height,
+			OGURI_CENTER_X, OGURI_CENTER_Y);
 
 	wl_surface_set_buffer_scale(output->surface, output->scale);
 	wl_surface_attach(output->surface, buffer->backing, 0, 0);
