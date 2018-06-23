@@ -22,18 +22,23 @@ struct oguri_state {
 	struct wl_display * display;
 	struct wl_compositor * compositor;
 	struct wl_shm * shm;
-	struct wl_surface * surface;
-	struct wl_region * input_region;
 
 	struct wl_list outputs;  // oguri_output::link
 	struct oguri_output * selected_output;
 
-	struct zxdg_output_manager_v1 * output_manager;
 	struct zwlr_layer_shell_v1 * layer_shell;
-	struct zwlr_layer_surface_v1 * layer_surface;
+	struct zxdg_output_manager_v1 * output_manager;
+};
 
-	uint32_t width;
-	uint32_t height;
+struct oguri_output {
+	struct wl_list link;  // oguri_state::outputs
+
+	char * name;
+	struct wl_output * output;
+
+	struct wl_surface * surface;
+	struct wl_region * input_region;
+	struct zwlr_layer_surface_v1 * layer_surface;
 
 	GdkPixbufAnimation * image;
 	GdkPixbufAnimationIter * frame_iter;
@@ -42,15 +47,12 @@ struct oguri_state {
 	cairo_surface_t * source_surface;
 	cairo_t * source_cairo;
 
-	struct wl_list buffer_ring;  // oguri_buffer::link
-};
-
-struct oguri_output {
-	struct wl_list link;  // oguri_state::outputs
-
-	char * name;
-	struct wl_output * output;
+	uint32_t width;
+	uint32_t height;
 	int32_t scale;
+
+	struct wl_shm * shm; // Same as on oguri_state, used to allocate buffers.
+	struct wl_list buffer_ring;  // oguri_buffer::link
 };
 
 // Helpers to define no-op listener members without angering the compiler:

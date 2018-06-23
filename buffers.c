@@ -19,15 +19,15 @@ static const struct wl_buffer_listener buffer_listener = {
 	.release = buffer_handle_release,
 };
 
-struct oguri_buffer * oguri_allocate_buffer(struct oguri_state * oguri) {
-	uint32_t stride = cairo_format_stride_for_width(CAIRO_FMT, oguri->width);
-	size_t size = stride * oguri->height;
+struct oguri_buffer * oguri_allocate_buffer(struct oguri_output * output) {
+	uint32_t stride = cairo_format_stride_for_width(CAIRO_FMT, output->width);
+	size_t size = stride * output->height;
 	if (size < 1) {
 		fprintf(stderr, "Tiny buffer\n");
 		return NULL;
 	}
 
-	static const char * template = "/oguri-buffer-XXXXXX";
+	static const char * template = "/output-buffer-XXXXXX";
 	const char * path = getenv("XDG_RUNTIME_DIR");
 	if (!path) {
 		fprintf(stderr, "XDG_RUNTIME_DIR is not set\n");
@@ -58,9 +58,9 @@ struct oguri_buffer * oguri_allocate_buffer(struct oguri_state * oguri) {
 
 	struct oguri_buffer * buffer = calloc(1, sizeof(struct oguri_buffer));
 
-	struct wl_shm_pool * pool = wl_shm_create_pool(oguri->shm, fd, size);
+	struct wl_shm_pool * pool = wl_shm_create_pool(output->shm, fd, size);
 	buffer->backing = wl_shm_pool_create_buffer(
-			pool, 0, oguri->width, oguri->height, stride,
+			pool, 0, output->width, output->height, stride,
 			WL_SHM_FORMAT_ARGB8888);
 	wl_buffer_add_listener(buffer->backing, &buffer_listener, buffer);
 
@@ -70,32 +70,36 @@ struct oguri_buffer * oguri_allocate_buffer(struct oguri_state * oguri) {
 
 	buffer->data = data;
 	buffer->cairo_surface = cairo_image_surface_create_for_data(
-			data, CAIRO_FMT, oguri->width, oguri->height, stride);
+			data, CAIRO_FMT, output->width, output->height, stride);
 	buffer->cairo = cairo_create(buffer->cairo_surface);
 
 	return buffer;
 }
 
-bool oguri_allocate_buffers(struct oguri_state * oguri) {
+bool oguri_allocate_buffers(struct oguri_output * output) {
+	if (!wl_list_empty(&output->buffer_ring)) {
+		// TODO: Clean up existing buffers.
+	}
+
 	for (size_t i = 0; i < 2; ++i) {
-		struct oguri_buffer * new_buffer = oguri_allocate_buffer(oguri);
+		struct oguri_buffer * new_buffer = oguri_allocate_buffer(output);
 		if (!new_buffer) {
 			return false;
 		}
-		wl_list_insert(oguri->buffer_ring.prev, &new_buffer->link);
+		wl_list_insert(output->buffer_ring.prev, &new_buffer->link);
 	}
 	return true;
 }
 
-struct oguri_buffer * next_buffer(struct oguri_state * oguri) {
+struct oguri_buffer * next_buffer(struct oguri_output * output) {
 	struct oguri_buffer * current = wl_container_of(
-			oguri->buffer_ring.next, current, link);
+			output->buffer_ring.next, current, link);
 	if (!current->busy) {
 		return current;
 	}
 	wl_list_remove(&current->link);
-	wl_list_insert(oguri->buffer_ring.prev, &current->link);
+	wl_list_insert(output->buffer_ring.prev, &current->link);
 
 	// TODO: This one might be busy too.
-	return wl_container_of(oguri->buffer_ring.next, current, link);
+	return wl_container_of(output->buffer_ring.next, current, link);
 }

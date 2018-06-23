@@ -59,35 +59,34 @@ void scale_image_onto(
 	cairo_restore(cairo);
 }
 
-void render_frame(struct oguri_state * oguri) {
-	struct oguri_buffer * buffer = next_buffer(oguri);
+void render_frame(struct oguri_output * output) {
+	struct oguri_buffer * buffer = next_buffer(output);
 	cairo_t *cairo = buffer->cairo;
 
-	GdkPixbuf * image = gdk_pixbuf_animation_iter_get_pixbuf(oguri->frame_iter);
+	GdkPixbuf * image = gdk_pixbuf_animation_iter_get_pixbuf(output->frame_iter);
 
 	// Draw the frame into our source surface, at its native size.
-	gdk_cairo_set_source_pixbuf(oguri->source_cairo, image, 0, 0);
-	cairo_paint(oguri->source_cairo);
+	gdk_cairo_set_source_pixbuf(output->source_cairo, image, 0, 0);
+	cairo_paint(output->source_cairo);
 
 	// Now scale that source surface onto the destination.
-	scale_image_onto(cairo, oguri->source_surface, oguri->width, oguri->height);
+	scale_image_onto(cairo, output->source_surface, output->width, output->height);
 
-	wl_surface_set_buffer_scale(oguri->surface, oguri->selected_output->scale);
-	wl_surface_attach(oguri->surface, buffer->backing, 0, 0);
-	wl_surface_damage(oguri->surface, 0, 0, oguri->width, oguri->height);
-	wl_surface_commit(oguri->surface);
+	wl_surface_set_buffer_scale(output->surface, output->scale);
+	wl_surface_attach(output->surface, buffer->backing, 0, 0);
+	wl_surface_damage(output->surface, 0, 0, output->width, output->height);
+	wl_surface_commit(output->surface);
 }
 
-bool oguri_load_image(struct oguri_state * oguri) {
+bool oguri_load_image(struct oguri_output * output, const char * path) {
 	GError * error = NULL;
-	oguri->image = gdk_pixbuf_animation_new_from_file(
-			oguri->image_path, &error);
-	if (!oguri->image) {
-		fprintf(stderr, "Could not open image '%s'", oguri->image_path);
+	output->image = gdk_pixbuf_animation_new_from_file(path, &error);
+	if (!output->image) {
+		fprintf(stderr, "Could not open image '%s'", path);
 		return false;
 	}
 
-	oguri->frame_iter = gdk_pixbuf_animation_get_iter(oguri->image, NULL);
+	output->frame_iter = gdk_pixbuf_animation_get_iter(output->image, NULL);
 	return true;
 }
 
@@ -175,28 +174,29 @@ static void layer_surface_configure(
 		uint32_t serial,
 		uint32_t width,
 		uint32_t height) {
-	struct oguri_state * oguri = data;
+	struct oguri_output * output = data;
 
-	oguri->width = width;
-	oguri->height = height;
+	output->width = width;
+	output->height = height;
 	zwlr_layer_surface_v1_ack_configure(layer_surface, serial);
 
-	if (!oguri_allocate_buffers(oguri)) {
+	if (!oguri_allocate_buffers(output)) {
 		fprintf(stderr, "No buffers, woe is me\n");
 	}
 
-	//render_frame(oguri);  // TODO: Testing timer
+	render_frame(output);
 }
 
 static void layer_surface_closed(
 		void * data,
 		struct zwlr_layer_surface_v1 * layer_surface) {
-	struct oguri_state * oguri = data;
+	struct oguri_output * output = data;
 
 	zwlr_layer_surface_v1_destroy(layer_surface);
-	wl_surface_destroy(oguri->surface);
-	wl_region_destroy(oguri->input_region);
-	oguri->run = false;
+	wl_surface_destroy(output->surface);
+	wl_region_destroy(output->input_region);
+
+	// TODO: Clean up output
 }
 
 static const struct zwlr_layer_surface_v1_listener layer_surface_listener = {
@@ -228,6 +228,9 @@ static void handle_registry(
 		// one. This is because we can't create xdg_outputs from the wl_outputs
 		// until later on, which means we don't know their names yet.
 		struct oguri_output * output = calloc(1, sizeof(struct oguri_output));
+		wl_list_init(&output->buffer_ring);
+		output->shm = oguri->shm;
+
 		output->output = wl_registry_bind(
 				registry, name, &wl_output_interface, 3);
 		wl_list_insert(&oguri->outputs, &output->link);
@@ -297,7 +300,6 @@ int main(int argc, char * argv[]) {
 
 	struct oguri_state oguri = {0};
 	wl_list_init(&oguri.outputs);
-	wl_list_init(&oguri.buffer_ring);
 
 	bool swaybg_compat = false;
 
@@ -313,15 +315,6 @@ int main(int argc, char * argv[]) {
 	if (argi < argc && swaybg_compat) {
 		fprintf(stderr, "Note: Scaling modes are not yet implemented\n");
 	}
-
-	if (!oguri_load_image(&oguri)) {
-		return 2;
-	}
-
-	oguri.source_surface = cairo_image_surface_create(CAIRO_FMT,
-			gdk_pixbuf_animation_get_width(oguri.image),
-			gdk_pixbuf_animation_get_height(oguri.image));
-	oguri.source_cairo = cairo_create(oguri.source_surface);
 
 	oguri.display = wl_display_connect(NULL);
 	assert(oguri.display);
@@ -376,35 +369,46 @@ int main(int argc, char * argv[]) {
 	if (!oguri.selected_output) {
 		fprintf(stderr, "Could not find an output named '%s'\n",
 				oguri.output_name);
+		return 2;
+	}
+
+	if (!oguri_load_image(oguri.selected_output, oguri.image_path)) {
 		return 3;
 	}
 
-	oguri.surface = wl_compositor_create_surface(oguri.compositor);
-	assert(oguri.surface);
+	output = oguri.selected_output;
 
-	oguri.input_region = wl_compositor_create_region(oguri.compositor);
-	assert(oguri.input_region);
-	wl_surface_set_input_region(oguri.surface, oguri.input_region);
+	output->source_surface = cairo_image_surface_create(CAIRO_FMT,
+			gdk_pixbuf_animation_get_width(output->image),
+			gdk_pixbuf_animation_get_height(output->image));
+	output->source_cairo = cairo_create(output->source_surface);
 
-	oguri.layer_surface = zwlr_layer_shell_v1_get_layer_surface(
+	output->surface = wl_compositor_create_surface(oguri.compositor);
+	assert(output->surface);
+
+	output->input_region = wl_compositor_create_region(oguri.compositor);
+	assert(output->input_region);
+	wl_surface_set_input_region(output->surface, output->input_region);
+
+	output->layer_surface = zwlr_layer_shell_v1_get_layer_surface(
 			oguri.layer_shell,
-			oguri.surface,
-			oguri.selected_output->output,
+			output->surface,
+			output->output,
 			ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND,
 			"wallpaper");
 
-	assert(oguri.layer_surface);
+	assert(output->layer_surface);
 
-	zwlr_layer_surface_v1_set_size(oguri.layer_surface, 0, 0);
-	zwlr_layer_surface_v1_set_anchor(oguri.layer_surface,
+	zwlr_layer_surface_v1_set_size(output->layer_surface, 0, 0);
+	zwlr_layer_surface_v1_set_anchor(output->layer_surface,
 			ZWLR_LAYER_SURFACE_V1_ANCHOR_TOP |
 			ZWLR_LAYER_SURFACE_V1_ANCHOR_RIGHT |
 			ZWLR_LAYER_SURFACE_V1_ANCHOR_BOTTOM |
 			ZWLR_LAYER_SURFACE_V1_ANCHOR_LEFT);
-	zwlr_layer_surface_v1_set_exclusive_zone(oguri.layer_surface, -1);
-	zwlr_layer_surface_v1_add_listener(oguri.layer_surface,
-			&layer_surface_listener, &oguri);
-	wl_surface_commit(oguri.surface);
+	zwlr_layer_surface_v1_set_exclusive_zone(output->layer_surface, -1);
+	zwlr_layer_surface_v1_add_listener(output->layer_surface,
+			&layer_surface_listener, output);
+	wl_surface_commit(output->surface);
 	wl_display_roundtrip(oguri.display);
 
 	// Set up our poll descriptors.
@@ -422,7 +426,7 @@ int main(int argc, char * argv[]) {
 
 	// Prepare the animation iterator with the current time and imediately
 	// schedule it for display.
-	oguri.frame_iter = gdk_pixbuf_animation_get_iter(oguri.image, NULL);
+	output->frame_iter = gdk_pixbuf_animation_get_iter(output->image, NULL);
 
 	if (!set_timer_milliseconds(events[OGURI_TIMER_EVENT].fd, 1)) {  // ASAP
 		fprintf(stderr, "Unable to schedule first timer\n");
@@ -481,13 +485,14 @@ int main(int argc, char * argv[]) {
 				break;
 			}
 
-			gdk_pixbuf_animation_iter_advance(oguri.frame_iter, NULL);
+			gdk_pixbuf_animation_iter_advance(
+					oguri.selected_output->frame_iter, NULL);
 			int delay = gdk_pixbuf_animation_iter_get_delay_time(
-					oguri.frame_iter);
+					oguri.selected_output->frame_iter);
 			if (delay > 0) {
 				set_timer_milliseconds(fd, (unsigned int)delay);
 			}
-			render_frame(&oguri);
+			render_frame(oguri.selected_output);
 		}
 	}
 

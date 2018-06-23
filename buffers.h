@@ -7,7 +7,7 @@
 #include "cairo.h"
 
 struct oguri_buffer {
-	struct wl_list link;  // oguri_state::buffer_ring;
+	struct wl_list link;  // oguri_output::buffer_ring;
 
 	bool busy;
 
@@ -18,8 +18,8 @@ struct oguri_buffer {
 	void * data;
 };
 
-struct oguri_buffer * oguri_allocate_buffer(struct oguri_state * oguri);
-bool oguri_allocate_buffers(struct oguri_state * oguri);
-struct oguri_buffer * next_buffer(struct oguri_state * oguri);
+struct oguri_buffer * oguri_allocate_buffer(struct oguri_output * output);
+bool oguri_allocate_buffers(struct oguri_output * output);
+struct oguri_buffer * next_buffer(struct oguri_output * output);
 
 #endif
