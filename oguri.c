@@ -359,8 +359,8 @@ int main(int argc, char * argv[]) {
 		++argi;
 	}
 
-	oguri.output_name = argv[argi++];
-	oguri.image_path = argv[argi++];
+	char * output_name = argv[argi++];
+	char * image_path = argv[argi++];
 
 	if (argi < argc && swaybg_compat) {
 		fprintf(stderr, "Note: Scaling modes are not yet implemented\n");
@@ -383,7 +383,7 @@ int main(int argc, char * argv[]) {
 	int output_number = -1;
 	struct oguri_output * output;
 
-	if (swaybg_compat && parse_int(oguri.output_name, &output_number)) {
+	if (swaybg_compat && parse_int(output_name, &output_number)) {
 		int i = 0;
 		wl_list_for_each(output, &oguri.outputs, link) {
 			if (i == output_number) {
@@ -408,7 +408,7 @@ int main(int argc, char * argv[]) {
 
 		// Now we can look for the one we wanted.
 		wl_list_for_each(output, &oguri.outputs, link) {
-			if (strcmp(output->name, oguri.output_name) == 0) {
+			if (strcmp(output->name, output_name) == 0) {
 				oguri.selected_output = output;
 				break;
 			}
@@ -417,12 +417,11 @@ int main(int argc, char * argv[]) {
 
 	// If we still haven't found a matching output, RIP.
 	if (!oguri.selected_output) {
-		fprintf(stderr, "Could not find an output named '%s'\n",
-				oguri.output_name);
+		fprintf(stderr, "Could not find an output named '%s'\n",output_name);
 		return 2;
 	}
 
-	if (!oguri_load_image(oguri.selected_output, oguri.image_path)) {
+	if (!oguri_load_image(oguri.selected_output, image_path)) {
 		return 3;
 	}
 

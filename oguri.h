@@ -25,9 +25,6 @@ enum oguri_anchor_y {
 };
 
 struct oguri_state {
-	char * output_name;
-	char * image_path;
-
 	bool run;
 	struct pollfd events[OGURI_EVENT_COUNT];
 
