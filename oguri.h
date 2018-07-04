@@ -64,12 +64,4 @@ struct oguri_output {
 	struct wl_list buffer_ring;  // oguri_buffer::link
 };
 
-// Helpers to define no-op listener members without angering the compiler:
-
-#define _incomplete_listener \
-_Pragma("GCC diagnostic push") \
-_Pragma("GCC diagnostic ignored \"-Wunused-parameter\"")
-
-#define _end_incomplete_listener _Pragma("GCC diagnostic pop")
-
 #endif

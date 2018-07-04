@@ -25,6 +25,9 @@
 #include "buffers.h"
 
 
+static void noop() {}  // For unused listener members.
+
+
 G_DEFINE_QUARK(oguri_new_frame, oguri_new_frame);
 
 bool oguri_is_first_cycle(GdkPixbuf * image) {
@@ -153,27 +156,11 @@ static void handle_output_scale(
 	((struct oguri_output *) data)->scale = factor;
 }
 
-_incomplete_listener
-
-static void handle_wl_output_geometry(
-		void *data, struct wl_output *output, int32_t x, int32_t y,
-		int32_t width_mm, int32_t height_mm, int32_t subpixel,
-		const char *make, const char *model, int32_t transform) {}
-
-static void handle_wl_output_mode(
-		void *data, struct wl_output *output, uint32_t flags, int32_t width,
-		int32_t height, int32_t refresh) {}
-
-static void handle_wl_output_done(void *data, struct wl_output *output) {}
-
-_end_incomplete_listener
-
 struct wl_output_listener output_listener = {
 	.scale = handle_output_scale,
-	// no-ops:
-	.geometry = handle_wl_output_geometry,
-	.mode = handle_wl_output_mode,
-	.done = handle_wl_output_done,
+	.geometry = noop,
+	.mode = noop,
+	.done = noop,
 };
 
 //
@@ -194,26 +181,12 @@ static void handle_xdg_output_done(
 	zxdg_output_v1_destroy(xdg_output);
 }
 
-_incomplete_listener
-
-static void handle_xdg_output_description(
-		void *data, struct zxdg_output_v1 *output, const char *description) {}
-
-static void handle_xdg_output_logical_size(
-		void *data, struct zxdg_output_v1 *output, int width, int height) {}
-
-static void handle_xdg_output_logical_position(
-		void *data, struct zxdg_output_v1 *output, int x, int y) {}
-
-_end_incomplete_listener
-
 struct zxdg_output_v1_listener xdg_output_listener = {
 	.name = handle_xdg_output_name,
 	.done = handle_xdg_output_done,
-	// no-ops:
-	.logical_position = handle_xdg_output_logical_position,
-	.logical_size = handle_xdg_output_logical_size,
-	.description = handle_xdg_output_description,
+	.logical_position = noop,
+	.logical_size = noop,
+	.description = noop,
 };
 
 //
@@ -296,17 +269,9 @@ static void handle_registry(
 	}
 }
 
-_incomplete_listener
-
-static void handle_global_remove(
-		void *data, struct wl_registry *registry, uint32_t name) {}
-
-_end_incomplete_listener
-
 static const struct wl_registry_listener registry_listener = {
 	.global = handle_registry,
-	// no-ops:
-	.global_remove = handle_global_remove,
+	.global_remove = noop,
 };
 
 //
