@@ -22,6 +22,7 @@
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 
 #include "oguri.h"
+#include "output.h"
 #include "buffers.h"
 
 
