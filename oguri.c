@@ -179,6 +179,7 @@ int main(int argc, char * argv[]) {
 		int i = 0;
 		wl_list_for_each(output, &oguri.idle_outputs, link) {
 			if (i == output_number) {
+				wl_list_remove(&output->link);
 				wl_list_insert(&animation->outputs, &output->link);
 				break;
 			}
@@ -201,6 +202,7 @@ int main(int argc, char * argv[]) {
 		// Now we can look for the one we wanted.
 		wl_list_for_each(output, &oguri.idle_outputs, link) {
 			if (strcmp(output->name, output_name) == 0) {
+				wl_list_remove(&output->link);
 				wl_list_insert(&animation->outputs, &output->link);
 				break;
 			}
