@@ -322,8 +322,8 @@ int main(int argc, char * argv[]) {
 	oguri.display = wl_display_connect(NULL);
 	assert(oguri.display);
 
-	struct wl_registry *registry = wl_display_get_registry(oguri.display);
-	wl_registry_add_listener(registry, &registry_listener, &oguri);
+	oguri.registry = wl_display_get_registry(oguri.display);
+	wl_registry_add_listener(oguri.registry, &registry_listener, &oguri);
 	wl_display_roundtrip(oguri.display);
 	assert(oguri.compositor && oguri.layer_shell && oguri.shm);
 
@@ -499,6 +499,15 @@ int main(int argc, char * argv[]) {
 		wl_list_remove(&output->link);
 		oguri_output_destroy(output);
 	}
+	oguri.selected_output = NULL;  // This has been destroyed at this point.
+
+	zxdg_output_manager_v1_destroy(oguri.output_manager);
+	zwlr_layer_shell_v1_destroy(oguri.layer_shell);
+
+	wl_compositor_destroy(oguri.compositor);
+	wl_shm_destroy(oguri.shm);
+	wl_registry_destroy(oguri.registry);
+	wl_display_disconnect(oguri.display);
 
 	return 0;
 }

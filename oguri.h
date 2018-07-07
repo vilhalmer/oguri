@@ -15,6 +15,7 @@ struct oguri_state {
 	bool run;
 
 	struct wl_display * display;
+	struct wl_registry * registry;
 	struct wl_compositor * compositor;
 	struct wl_shm * shm;
 
