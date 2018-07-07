@@ -13,7 +13,6 @@ enum oguri_events {
 
 struct oguri_state {
 	bool run;
-	struct pollfd events[OGURI_EVENT_COUNT];
 
 	struct wl_display * display;
 	struct wl_compositor * compositor;
