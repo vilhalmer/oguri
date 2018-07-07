@@ -1,9 +1,13 @@
+#define _POSIX_C_SOURCE 200809L
+
 #include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <wayland-client.h>
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
+#include "xdg-output-unstable-v1-client-protocol.h"
 
 #include "oguri.h"
 #include "output.h"
@@ -62,6 +66,32 @@ static const struct zwlr_layer_surface_v1_listener layer_surface_listener = {
 };
 
 //
+// XDG Output Manager
+//
+
+static void handle_xdg_output_name(
+		void * data,
+		struct zxdg_output_v1 * xdg_output __attribute__((unused)),
+		const char *name) {
+	((struct oguri_output *) data)->name = strdup(name);
+}
+
+static void handle_xdg_output_done(
+		void * data __attribute__((unused)),
+		struct zxdg_output_v1 * xdg_output) {
+	// We have no further use for this object.
+	zxdg_output_v1_destroy(xdg_output);
+}
+
+struct zxdg_output_v1_listener xdg_output_listener = {
+	.name = handle_xdg_output_name,
+	.done = handle_xdg_output_done,
+	.logical_position = noop,
+	.logical_size = noop,
+	.description = noop,
+};
+
+//
 // Outputs
 //
 
@@ -90,6 +120,10 @@ struct oguri_output * oguri_output_create(
 			"wallpaper");
 
 	assert(output->layer_surface);
+
+	struct zxdg_output_v1 * xdg_output = zxdg_output_manager_v1_get_xdg_output(
+			oguri->output_manager, output->output);
+	zxdg_output_v1_add_listener(xdg_output, &xdg_output_listener, output);
 
 	zwlr_layer_surface_v1_set_size(output->layer_surface, 0, 0);
 	zwlr_layer_surface_v1_set_anchor(output->layer_surface,

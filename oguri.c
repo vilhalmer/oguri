@@ -17,8 +17,8 @@
 #include <string.h>
 #include <sys/timerfd.h>
 #include "cairo.h"
-#include "xdg-output-unstable-v1-client-protocol.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
+#include "xdg-output-unstable-v1-client-protocol.h"
 
 #include "oguri.h"
 #include "animation.h"
@@ -26,33 +26,6 @@
 
 
 static void noop() {}  // For unused listener members.
-
-
-//
-// XDG Output Manager
-//
-
-static void handle_xdg_output_name(
-		void * data,
-		struct zxdg_output_v1 * xdg_output __attribute__((unused)),
-		const char *name) {
-	((struct oguri_output *) data)->name = strdup(name);
-}
-
-static void handle_xdg_output_done(
-		void * data __attribute__((unused)),
-		struct zxdg_output_v1 * xdg_output) {
-	// We have no further use for this object.
-	zxdg_output_v1_destroy(xdg_output);
-}
-
-struct zxdg_output_v1_listener xdg_output_listener = {
-	.name = handle_xdg_output_name,
-	.done = handle_xdg_output_done,
-	.logical_position = noop,
-	.logical_size = noop,
-	.description = noop,
-};
 
 //
 // Wayland registry
@@ -189,17 +162,6 @@ int main(int argc, char * argv[]) {
 
 	// If the output wasn't a number, we have to look up all the names.
 	if (wl_list_empty(&animation->outputs)) {
-		// Fetch the names of each available output so we can decide which one
-		// we were instructed to draw onto.
-		wl_list_for_each(output, &oguri.idle_outputs, link) {
-			struct zxdg_output_v1 * xdg_output = zxdg_output_manager_v1_get_xdg_output(
-					oguri.output_manager, output->output);
-			zxdg_output_v1_add_listener(
-					xdg_output, &xdg_output_listener, output);
-		}
-		wl_display_roundtrip(oguri.display);
-
-		// Now we can look for the one we wanted.
 		wl_list_for_each(output, &oguri.idle_outputs, link) {
 			if (strcmp(output->name, output_name) == 0) {
 				wl_list_remove(&output->link);
