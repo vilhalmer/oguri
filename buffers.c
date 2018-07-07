@@ -3,9 +3,13 @@
 //
 #define _POSIX_C_SOURCE 200809L
 
+#include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 #include <sys/mman.h>
+#include <unistd.h>
 #include "oguri.h"
 #include "buffers.h"
 
@@ -92,6 +96,7 @@ bool oguri_allocate_buffers(struct oguri_output * output) {
 }
 
 struct oguri_buffer * next_buffer(struct oguri_output * output) {
+	assert(output);
 	struct oguri_buffer * current = wl_container_of(
 			output->buffer_ring.next, current, link);
 	if (!current->busy) {

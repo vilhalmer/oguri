@@ -22,8 +22,9 @@ subdir('protocols')
 executable(
 	'oguri',
 	files([
-		'oguri.c',
+		'animation.c',
 		'buffers.c',
+		'oguri.c',
 		'output.c',
 	]),
 	dependencies: [

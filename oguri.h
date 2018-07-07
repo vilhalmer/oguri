@@ -22,8 +22,8 @@ struct oguri_state {
 	struct zwlr_layer_shell_v1 * layer_shell;
 	struct zxdg_output_manager_v1 * output_manager;
 
-	struct wl_list outputs;  // oguri_output::link
-	struct oguri_output * selected_output;
+	struct wl_list idle_outputs;  // oguri_output::link
+	struct wl_list animations;  // oguri_animation::link
 };
 
 #endif

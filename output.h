@@ -2,7 +2,6 @@
 #define _OGURI_OUTPUT_H
 
 #include <wayland-client.h>
-#include <gdk-pixbuf/gdk-pixbuf.h>
 #include <cairo.h>
 
 struct oguri_state;
@@ -29,13 +28,6 @@ struct oguri_output {
 	struct wl_region * input_region;
 	struct zwlr_layer_surface_v1 * layer_surface;
 
-	GdkPixbufAnimation * image;
-	GdkPixbufAnimationIter * frame_iter;
-
-	// Caches the latest frame from the source
-	cairo_surface_t * source_surface;
-	cairo_t * source_cairo;
-
 	uint32_t width;
 	uint32_t height;
 	int32_t scale;
@@ -44,7 +36,8 @@ struct oguri_output {
 	struct wl_list buffer_ring;  // oguri_buffer::link
 };
 
-struct oguri_output * oguri_output_create(struct oguri_state * oguri);
+struct oguri_output * oguri_output_create(
+		struct oguri_state * oguri, struct wl_output * wl_output);
 void oguri_output_destroy(struct oguri_output * output);
 
 #endif
