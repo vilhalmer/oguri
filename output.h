@@ -5,6 +5,8 @@
 #include <gdk-pixbuf/gdk-pixbuf.h>
 #include <cairo.h>
 
+struct oguri_state;
+
 enum oguri_anchor_x {
 	OGURI_CENTER_X = 0,
 	OGURI_LEFT,
@@ -41,5 +43,8 @@ struct oguri_output {
 	struct wl_shm * shm; // Same as on oguri_state, used to allocate buffers.
 	struct wl_list buffer_ring;  // oguri_buffer::link
 };
+
+struct oguri_output * oguri_output_create(struct oguri_state * oguri);
+void oguri_output_destroy(struct oguri_output * output);
 
 #endif

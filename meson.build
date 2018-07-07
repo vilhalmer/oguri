@@ -24,6 +24,7 @@ executable(
 	files([
 		'oguri.c',
 		'buffers.c',
+		'output.c',
 	]),
 	dependencies: [
 		cairo,

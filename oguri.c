@@ -213,14 +213,8 @@ static void layer_surface_configure(
 
 static void layer_surface_closed(
 		void * data,
-		struct zwlr_layer_surface_v1 * layer_surface) {
-	struct oguri_output * output = data;
-
-	zwlr_layer_surface_v1_destroy(layer_surface);
-	wl_surface_destroy(output->surface);
-	wl_region_destroy(output->input_region);
-
-	// TODO: Clean up output
+		struct zwlr_layer_surface_v1 * layer_surface __attribute__((unused))) {
+	oguri_output_destroy((struct oguri_output *) data);
 }
 
 static const struct zwlr_layer_surface_v1_listener layer_surface_listener = {
@@ -248,16 +242,9 @@ static void handle_registry(
 		oguri->shm = wl_registry_bind(registry, name, &wl_shm_interface, 1);
 	}
 	else if (strcmp(interface, wl_output_interface.name) == 0) {
-		// We have to keep track of all outputs, even though we will only use
-		// one. This is because we can't create xdg_outputs from the wl_outputs
-		// until later on, which means we don't know their names yet.
-		struct oguri_output * output = calloc(1, sizeof(struct oguri_output));
-		wl_list_init(&output->buffer_ring);
-		output->shm = oguri->shm;
-
+		struct oguri_output * output = oguri_output_create(oguri);
 		output->output = wl_registry_bind(
 				registry, name, &wl_output_interface, 3);
-		wl_list_insert(&oguri->outputs, &output->link);
 		wl_output_add_listener(output->output, &output_listener, output);
 	}
 	else if (strcmp(interface, zxdg_output_manager_v1_interface.name) == 0) {
@@ -510,8 +497,7 @@ int main(int argc, char * argv[]) {
 	struct oguri_output * tmp;
 	wl_list_for_each_safe(output, tmp, &oguri.outputs, link) {
 		wl_list_remove(&output->link);
-		free(output->name);
-		free(output);
+		oguri_output_destroy(output);
 	}
 
 	return 0;
