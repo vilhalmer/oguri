@@ -19,7 +19,7 @@ struct oguri_animation {
 	struct wl_list outputs;  // oguri_output::link
 };
 
-int render_frame(struct oguri_animation * anim);
+int oguri_render_frame(struct oguri_animation * anim);
 struct oguri_animation * oguri_animation_create(
 		struct oguri_state * oguri, const char * path);
 void oguri_animation_destroy(struct oguri_animation * anim);

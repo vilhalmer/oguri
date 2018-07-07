@@ -95,7 +95,7 @@ bool oguri_allocate_buffers(struct oguri_output * output) {
 	return true;
 }
 
-struct oguri_buffer * next_buffer(struct oguri_output * output) {
+struct oguri_buffer * oguri_next_buffer(struct oguri_output * output) {
 	assert(output);
 	struct oguri_buffer * current = wl_container_of(
 			output->buffer_ring.next, current, link);

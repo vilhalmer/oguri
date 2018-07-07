@@ -247,7 +247,7 @@ int main(int argc, char * argv[]) {
 				break;
 			}
 
-			int delay = render_frame(animation);
+			int delay = oguri_render_frame(animation);
 			if (delay > 0) {
 				set_timer_milliseconds(fd, (unsigned int)delay);
 			}

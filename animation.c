@@ -82,7 +82,7 @@ static void scale_image_onto(
 	cairo_restore(cairo);
 }
 
-int render_frame(struct oguri_animation * anim) {
+int oguri_render_frame(struct oguri_animation * anim) {
 	gdk_pixbuf_animation_iter_advance(anim->frame_iter, NULL);
 	GdkPixbuf * image = gdk_pixbuf_animation_iter_get_pixbuf(anim->frame_iter);
 
@@ -92,7 +92,7 @@ int render_frame(struct oguri_animation * anim) {
 
 	struct oguri_output * output;
 	wl_list_for_each(output, &anim->outputs, link) {
-		struct oguri_buffer * buffer = next_buffer(output);
+		struct oguri_buffer * buffer = oguri_next_buffer(output);
 		cairo_t *cairo = buffer->cairo;
 
 		scale_image_onto(
