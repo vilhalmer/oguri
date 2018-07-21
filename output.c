@@ -113,8 +113,6 @@ struct oguri_output * oguri_output_create(
 	output->output = wl_output;
 	wl_output_add_listener(wl_output, &output_listener, output);
 
-	output->shm = oguri->shm;
-
 	output->surface = wl_compositor_create_surface(oguri->compositor);
 	assert(output->surface);
 
@@ -161,8 +159,6 @@ void oguri_output_destroy(struct oguri_output * output) {
 
 	wl_surface_destroy(output->surface);
 	zwlr_layer_surface_v1_destroy(output->layer_surface);
-
-	output->shm = NULL;  // This cannot be freed here.
 
 	struct oguri_buffer * buffer, * tmp;
 	wl_list_for_each_safe(buffer, tmp, &output->buffer_ring, link) {

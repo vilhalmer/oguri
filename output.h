@@ -32,7 +32,6 @@ struct oguri_output {
 	uint32_t height;
 	int32_t scale;
 
-	struct wl_shm * shm; // Same as on oguri_state, used to allocate buffers.
 	struct wl_list buffer_ring;  // oguri_buffer::link
 };
 
