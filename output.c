@@ -47,8 +47,17 @@ static void layer_surface_configure(
 
 	output->width = width;
 	output->height = height;
-	zwlr_layer_surface_v1_ack_configure(layer_surface, serial);
 
+	// The entire surface can be marked opaque, as it should be the lowest
+	// z-index on the display.
+	struct wl_region * opaque = wl_compositor_create_region(
+			output->oguri->compositor);
+	assert(opaque);
+	wl_region_add(opaque, 0, 0, output->width, output->height);
+	wl_surface_set_opaque_region(output->surface, opaque);
+	wl_region_destroy(opaque);
+
+	zwlr_layer_surface_v1_ack_configure(layer_surface, serial);
 	if (!oguri_allocate_buffers(output)) {
 		fprintf(stderr, "No buffers, woe is me\n");
 	}
@@ -98,6 +107,7 @@ struct zxdg_output_v1_listener xdg_output_listener = {
 struct oguri_output * oguri_output_create(
 		struct oguri_state * oguri, struct wl_output * wl_output) {
 	struct oguri_output * output = calloc(1, sizeof(struct oguri_output));
+	output->oguri = oguri;
 	wl_list_init(&output->buffer_ring);
 
 	output->output = wl_output;

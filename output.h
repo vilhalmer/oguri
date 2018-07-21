@@ -19,6 +19,7 @@ enum oguri_anchor_y {
 };
 
 struct oguri_output {
+	struct oguri_state * oguri;
 	struct wl_list link;  // oguri_state::outputs
 
 	char * name;
