@@ -118,9 +118,11 @@ struct oguri_output * oguri_output_create(
 	output->surface = wl_compositor_create_surface(oguri->compositor);
 	assert(output->surface);
 
-	output->input_region = wl_compositor_create_region(oguri->compositor);
-	assert(output->input_region);
-	wl_surface_set_input_region(output->surface, output->input_region);
+	struct wl_region * input_region = wl_compositor_create_region(
+			oguri->compositor);
+	assert(input_region);
+	wl_surface_set_input_region(output->surface, input_region);
+	wl_region_destroy(input_region);
 
 	output->layer_surface = zwlr_layer_shell_v1_get_layer_surface(
 			oguri->layer_shell,
@@ -158,7 +160,6 @@ void oguri_output_destroy(struct oguri_output * output) {
 	free(output->name);
 
 	wl_surface_destroy(output->surface);
-	wl_region_destroy(output->input_region);
 	zwlr_layer_surface_v1_destroy(output->layer_surface);
 
 	output->shm = NULL;  // This cannot be freed here.

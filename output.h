@@ -26,7 +26,6 @@ struct oguri_output {
 	struct wl_output * output;
 
 	struct wl_surface * surface;
-	struct wl_region * input_region;
 	struct zwlr_layer_surface_v1 * layer_surface;
 
 	uint32_t width;
