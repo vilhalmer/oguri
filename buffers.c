@@ -39,6 +39,7 @@ struct oguri_buffer * oguri_allocate_buffer(struct oguri_output * output) {
 		fprintf(stderr, "Failed to create buffer backing memory\n");
 		return NULL;
 	}
+	shm_unlink("/oguri-buffer");
 
 	if (ftruncate(fd, size) < 0) {
 		close(fd);
@@ -63,7 +64,6 @@ struct oguri_buffer * oguri_allocate_buffer(struct oguri_output * output) {
 
 	wl_shm_pool_destroy(pool);
 	close(fd);
-	shm_unlink("/oguri-buffer");
 
 	buffer->data = data;
 	buffer->cairo_surface = cairo_image_surface_create_for_data(
