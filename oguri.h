@@ -13,6 +13,7 @@ enum oguri_events {
 
 struct oguri_state {
 	bool run;
+	bool oneshot;  // Whether to exit when an active display disconnects.
 
 	struct wl_display * display;
 	struct wl_registry * registry;

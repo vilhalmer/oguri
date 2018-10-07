@@ -113,7 +113,7 @@ int main(int argc, char * argv[]) {
 
 	int argi = 1;
 	if (strcmp(argv[argi], "-s") == 0) {
-		swaybg_compat = true;
+		oguri.oneshot = swaybg_compat = true;
 		++argi;
 	}
 
