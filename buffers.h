@@ -19,7 +19,7 @@ struct oguri_buffer {
 };
 
 struct oguri_buffer * oguri_allocate_buffer(struct oguri_output * output);
-bool oguri_allocate_buffers(struct oguri_output * output);
+bool oguri_allocate_buffers(struct oguri_output * output, int count);
 struct oguri_buffer * oguri_next_buffer(struct oguri_output * output);
 
 #endif
