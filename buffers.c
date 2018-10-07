@@ -4,6 +4,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include <assert.h>
+#include <fcntl.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -31,18 +32,9 @@ struct oguri_buffer * oguri_allocate_buffer(struct oguri_output * output) {
 		return NULL;
 	}
 
-	static const char * template = "/output-buffer-XXXXXX";
-	const char * path = getenv("XDG_RUNTIME_DIR");
-	if (!path) {
-		fprintf(stderr, "XDG_RUNTIME_DIR is not set\n");
-		return NULL;
-	}
-
-	size_t name_size = strlen(template) + 1 + strlen(path) + 1;
-	char name[name_size];
-	snprintf(name, name_size, "%s/%s", path, template);
-
-	int fd = mkstemp(name);
+	// O_EXCL shouldn't be necessary here, but I would rather have it fail if
+	// something weird happens.
+	int fd = shm_open("/oguri-buffer", O_RDWR|O_CREAT|O_EXCL, 0600);
 	if (fd < 0) {
 		fprintf(stderr, "Failed to create buffer backing memory\n");
 		return NULL;
@@ -53,7 +45,7 @@ struct oguri_buffer * oguri_allocate_buffer(struct oguri_output * output) {
 		return NULL;
 	}
 
-	void * data = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	void * data = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
 	if (!data) {
 		fprintf(stderr, "Failed to map backing memory\n");
 		close(fd);
@@ -71,7 +63,7 @@ struct oguri_buffer * oguri_allocate_buffer(struct oguri_output * output) {
 
 	wl_shm_pool_destroy(pool);
 	close(fd);
-	unlink(name);
+	shm_unlink("/oguri-buffer");
 
 	buffer->data = data;
 	buffer->cairo_surface = cairo_image_surface_create_for_data(

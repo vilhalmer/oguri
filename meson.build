@@ -19,6 +19,8 @@ wayland_protocols = dependency('wayland-protocols', version: '>=1.14')
 
 subdir('protocols')
 
+c = meson.get_compiler('c')
+
 executable(
 	'oguri',
 	files([
@@ -33,6 +35,7 @@ executable(
 		gdk_pixbuf,
 		wayland_client,
 		client_protos,
+		c.find_library('rt'),  # For shm_open
 	],
 	install: true,
 )
