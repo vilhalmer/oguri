@@ -95,12 +95,8 @@ struct oguri_buffer * oguri_next_buffer(struct oguri_output * output) {
 	assert(output);
 	struct oguri_buffer * current = wl_container_of(
 			output->buffer_ring.next, current, link);
-	if (!current->busy) {
-		return current;
-	}
 	wl_list_remove(&current->link);
 	wl_list_insert(output->buffer_ring.prev, &current->link);
 
-	// TODO: This one might be busy too.
 	return wl_container_of(output->buffer_ring.next, current, link);
 }

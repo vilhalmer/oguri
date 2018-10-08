@@ -16,6 +16,9 @@ struct oguri_animation {
 	cairo_surface_t * source_surface;
 	cairo_t * source_cairo;
 
+	unsigned int frame_count;
+	unsigned int frame_index;
+
 	struct wl_list outputs;  // oguri_output::link
 };
 

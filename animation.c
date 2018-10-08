@@ -86,20 +86,62 @@ int oguri_render_frame(struct oguri_animation * anim) {
 	gdk_pixbuf_animation_iter_advance(anim->frame_iter, NULL);
 	GdkPixbuf * image = gdk_pixbuf_animation_iter_get_pixbuf(anim->frame_iter);
 
-	// Draw the frame into our source surface, at its native size.
-	gdk_cairo_set_source_pixbuf(anim->source_cairo, image, 0, 0);
-	cairo_paint(anim->source_cairo);
+	// TODO: Maybe we should cache this on the animation?
+	bool first_cycle = oguri_is_first_cycle(image);
+	if (first_cycle) {
+		++anim->frame_count;
+	}
+
+	// Keep track of the fact that we moved forward a frame, looping back to
+	// the beginning if appropriate. Because we increment frame_count at the
+	// beginning, this works just fine the first time through when we don't
+	// actually know the final count yet.
+	anim->frame_index = (anim->frame_index + 1) % anim->frame_count;
 
 	struct oguri_output * output;
 	wl_list_for_each(output, &anim->outputs, link) {
 		struct oguri_buffer * buffer = oguri_next_buffer(output);
-		cairo_t *cairo = buffer->cairo;
 
-		scale_image_onto(
-				cairo, anim->source_surface, output->width, output->height,
-				OGURI_CENTER_X, OGURI_CENTER_Y);
+		if (!output->animation_cached) {
+			if (!first_cycle && anim->frame_index == 0) {
+				// This is a bit hacky. When we're past the first cycle, we
+				// want to have as many buffers as the animation has frames,
+				// because then we can keep each resized frame in a buffer
+				// instead of re-scaling it each time. We also only need to
+				// resize our buffer ring once and it will stay at that size,
+				// so we just do it on frame zero of the cycle. Since we're
+				// only doing this when the animation is uncached, and it will
+				// be cached by the end of the second cycle, this happens once
+				// (barring any display reconfiguration).
+				if (!oguri_allocate_buffers(output, anim->frame_count)) {
+					// TODO: This will freeze us at the current frame, probably
+					// should quit instead.
+					return -1;
+				}
+			}
 
-		wl_surface_set_buffer_scale(output->surface, output->scale);
+			cairo_t *cairo = buffer->cairo;
+
+			// Draw the frame into our source surface, at its native size.
+			gdk_cairo_set_source_pixbuf(anim->source_cairo, image, 0, 0);
+			cairo_paint(anim->source_cairo);
+
+			scale_image_onto(
+					cairo, anim->source_surface, output->width, output->height,
+					OGURI_CENTER_X, OGURI_CENTER_Y);
+
+			wl_surface_set_buffer_scale(output->surface, output->scale);
+
+			if (!first_cycle && anim->frame_index == anim->frame_count - 1) {
+				// We've seen every frame, which means this output has a
+				// valid buffer for every frame of the animation and we can
+				// stop drawing them.
+				output->animation_cached = true;
+			}
+		}
+
+		// TODO: This should mark the buffer as busy, but we're not actually
+		// checking for that anyway.
 		wl_surface_attach(output->surface, buffer->backing, 0, 0);
 		wl_surface_damage(output->surface, 0, 0, output->width, output->height);
 		wl_surface_commit(output->surface);
