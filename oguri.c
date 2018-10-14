@@ -131,6 +131,8 @@ int main(int argc, char * argv[]) {
 		return 3;
 	}
 
+	animation->output_name = output_name;
+
 	oguri.display = wl_display_connect(NULL);
 	assert(oguri.display);
 
@@ -143,13 +145,10 @@ int main(int argc, char * argv[]) {
 	wl_display_roundtrip(oguri.display);
 
 	// Parse the requested output as a number if we're in swaybg mode.
-	// Note that we'll still fall back to parsing it as a name, even though
-	// we'd never expect to get that from sway.
 	int output_number = -1;
-	struct oguri_output * output;
-
 	if (swaybg_compat && parse_int(output_name, &output_number)) {
 		int i = 0;
+		struct oguri_output * output;
 		wl_list_for_each(output, &oguri.idle_outputs, link) {
 			if (i == output_number) {
 				wl_list_remove(&output->link);
@@ -158,23 +157,13 @@ int main(int argc, char * argv[]) {
 			}
 			++i;
 		}
-	}
 
-	// If the output wasn't a number, we have to look up all the names.
-	if (wl_list_empty(&animation->outputs)) {
-		wl_list_for_each(output, &oguri.idle_outputs, link) {
-			if (strcmp(output->name, output_name) == 0) {
-				wl_list_remove(&output->link);
-				wl_list_insert(&animation->outputs, &output->link);
-				break;
-			}
+		// If we haven't found a matching output, RIP.
+		if (wl_list_empty(&animation->outputs)) {
+			fprintf(stderr, "Could not find an output with number %d\n",
+				output_number);
+			return 2;
 		}
-	}
-
-	// If we still haven't found a matching output, RIP.
-	if (wl_list_empty(&animation->outputs)) {
-		fprintf(stderr, "Could not find an output named '%s'\n",output_name);
-		return 2;
 	}
 
 	// Set up our poll descriptors.
@@ -190,7 +179,8 @@ int main(int argc, char * argv[]) {
 		}
 	};
 
-	if (!set_timer_milliseconds(events[OGURI_TIMER_EVENT].fd, 1)) {  // ASAP
+	// Draw the first frame ASAP
+	if (!set_timer_milliseconds(events[OGURI_TIMER_EVENT].fd, 1)) {
 		fprintf(stderr, "Unable to schedule first timer\n");
 	}
 
@@ -200,6 +190,14 @@ int main(int argc, char * argv[]) {
 			wl_display_dispatch_pending(oguri.display);
 		}
 		wl_display_flush(oguri.display);
+
+		// If some outputs were added, schedule a new frame ASAP
+		if (oguri.dirty) {
+			if (!set_timer_milliseconds(events[OGURI_TIMER_EVENT].fd, 1)) {
+				fprintf(stderr, "Unable to schedule timer\n");
+			}
+			oguri.dirty = false;
+		}
 
 		polled = poll(events, OGURI_EVENT_COUNT, -1);
 		if (polled < 0) {
@@ -261,6 +259,7 @@ int main(int argc, char * argv[]) {
 
 	// At this point, because we've destroyed all of the animations, all
 	// outputs should be idle again and will be cleaned up here.
+	struct oguri_output * output;
 	struct oguri_output * output_tmp;
 	wl_list_for_each_safe(output, output_tmp, &oguri.idle_outputs, link) {
 		oguri_output_destroy(output);

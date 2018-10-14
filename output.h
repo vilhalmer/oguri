@@ -20,7 +20,7 @@ enum oguri_anchor_y {
 
 struct oguri_output {
 	struct oguri_state * oguri;
-	struct wl_list link;  // oguri_state::outputs
+	struct wl_list link;  // oguri_state::idle_outputs or oguri_animation::outputs
 
 	char * name;
 	struct wl_output * output;

@@ -10,6 +10,8 @@ struct oguri_animation {
 	struct oguri_state * oguri;
 	struct wl_list link;
 
+	const char * output_name;
+
 	char * path;
 	GdkPixbufAnimation * image;
 	GdkPixbufAnimationIter * frame_iter;

@@ -11,6 +11,7 @@
 
 #include "oguri.h"
 #include "output.h"
+#include "animation.h"
 #include "buffers.h"
 
 static void noop() {}  // For unused listener members.
@@ -169,7 +170,24 @@ struct oguri_output * oguri_output_create(
 
 	wl_display_roundtrip(oguri->display);
 
-	wl_list_insert(oguri->idle_outputs.prev, &output->link);
+	// Try to find an animation configured with this output
+	bool found = false;
+	struct oguri_animation *animation;
+	wl_list_for_each(animation, &oguri->animations, link) {
+		if (strcmp(output->name, animation->output_name) == 0) {
+			found = true;
+			break;
+		}
+	}
+
+	if (found) {
+		wl_list_insert(&animation->outputs, &output->link);
+		oguri->dirty = true;
+	}
+	else {
+		wl_list_insert(oguri->idle_outputs.prev, &output->link);
+	}
+
 	return output;
 }
 
