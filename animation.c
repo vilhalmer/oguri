@@ -138,7 +138,6 @@ int oguri_render_frame(struct oguri_animation * anim) {
 				// frame of the animation. On the first cycle, however, we
 				// don't want to cache because we don't know how many there
 				// will be (or if the animation is even finite, technically).
-				printf("cached %d\n", output->cached_frames);
 				++output->cached_frames;
 			}
 		}
