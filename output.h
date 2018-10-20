@@ -32,7 +32,7 @@ struct oguri_output {
 	uint32_t height;
 	int32_t scale;
 
-	bool animation_cached;
+	unsigned int cached_frames;
 	struct wl_list buffer_ring;  // oguri_buffer::link
 };
 

@@ -102,7 +102,7 @@ int oguri_render_frame(struct oguri_animation * anim) {
 	wl_list_for_each(output, &anim->outputs, link) {
 		struct oguri_buffer * buffer = oguri_next_buffer(output);
 
-		if (!output->animation_cached) {
+		if (output->cached_frames < anim->frame_count) {
 			if (!first_cycle && anim->frame_index == 0) {
 				// This is a bit hacky. When we're past the first cycle, we
 				// want to have as many buffers as the animation has frames,
@@ -132,11 +132,14 @@ int oguri_render_frame(struct oguri_animation * anim) {
 
 			wl_surface_set_buffer_scale(output->surface, output->scale);
 
-			if (!first_cycle && anim->frame_index == anim->frame_count - 1) {
-				// We've seen every frame, which means this output has a
-				// valid buffer for every frame of the animation and we can
-				// stop drawing them.
-				output->animation_cached = true;
+			if (!first_cycle) {
+				// We count the number of frames we've cached to know when
+				// we've cached them all, even if we didn't start at the first
+				// frame of the animation. On the first cycle, however, we
+				// don't want to cache because we don't know how many there
+				// will be (or if the animation is even finite, technically).
+				printf("cached %d\n", output->cached_frames);
+				++output->cached_frames;
 			}
 		}
 
