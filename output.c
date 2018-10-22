@@ -58,9 +58,7 @@ static void layer_surface_configure(
 	wl_region_destroy(opaque);
 
 	zwlr_layer_surface_v1_ack_configure(layer_surface, serial);
-	if (!oguri_allocate_buffers(output, 2)) {
-		fprintf(stderr, "No buffers, woe is me\n");
-	}
+	assert(oguri_allocate_buffers(output, 2));
 }
 
 static void layer_surface_closed(
