@@ -29,7 +29,7 @@ with sway:
 
 `oguri` is known to work with the following compositors:
 
-- [sway](https://github.com/swaywm/sway) 1.0 alpha
+- [sway](https://github.com/swaywm/sway) 1.0 beta
 
 If you find that it works with something else, please submit a PR! :) There is
 a good chance that it will work with any wlroots-based compositor.
