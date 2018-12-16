@@ -127,17 +127,29 @@ struct oguri_output * oguri_output_create(
 		struct oguri_state * oguri, struct wl_output * wl_output) {
 	struct oguri_output * output = calloc(1, sizeof(struct oguri_output));
 	output->oguri = oguri;
+	wl_list_init(&output->link);
 	wl_list_init(&output->buffer_ring);
 
 	output->output = wl_output;
 	wl_output_add_listener(wl_output, &output_listener, output);
 
 	output->surface = wl_compositor_create_surface(oguri->compositor);
-	assert(output->surface);
+
+	if (!output->surface) {
+		fprintf(stderr, "Couldn't create surface for output!");
+		oguri_output_destroy(output);
+		return NULL;
+	}
 
 	struct wl_region * input_region = wl_compositor_create_region(
 			oguri->compositor);
-	assert(input_region);
+
+	if (!input_region) {
+		fprintf(stderr, "Couldn't create input region for output!");
+		oguri_output_destroy(output);
+		return NULL;
+	}
+
 	wl_surface_set_input_region(output->surface, input_region);
 	wl_region_destroy(input_region);
 
@@ -148,7 +160,11 @@ struct oguri_output * oguri_output_create(
 			ZWLR_LAYER_SHELL_V1_LAYER_BACKGROUND,
 			"wallpaper");
 
-	assert(output->layer_surface);
+	if (!output->layer_surface) {
+		fprintf(stderr, "Couldn't create layer surface for output!");
+		oguri_output_destroy(output);
+		return NULL;
+	}
 
 	struct zxdg_output_v1 * xdg_output = zxdg_output_manager_v1_get_xdg_output(
 			oguri->output_manager, output->output);
@@ -176,8 +192,12 @@ void oguri_output_destroy(struct oguri_output * output) {
 
 	free(output->name);
 
-	wl_surface_destroy(output->surface);
-	zwlr_layer_surface_v1_destroy(output->layer_surface);
+	if (output->surface) {
+		wl_surface_destroy(output->surface);
+	}
+	if (output->layer_surface) {
+		zwlr_layer_surface_v1_destroy(output->layer_surface);
+	}
 
 	struct oguri_buffer * buffer, * tmp;
 	wl_list_for_each_safe(buffer, tmp, &output->buffer_ring, link) {
