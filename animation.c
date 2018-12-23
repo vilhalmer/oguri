@@ -116,6 +116,8 @@ int oguri_render_frame(struct oguri_animation * anim) {
 				if (!oguri_allocate_buffers(output, anim->frame_count)) {
 					// TODO: This will freeze us at the current frame, probably
 					// should quit instead.
+					fprintf(stderr, "Unable to allocate %d frame buffers\n",
+							anim->frame_count);
 					return -1;
 				}
 			}

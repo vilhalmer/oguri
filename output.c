@@ -58,7 +58,9 @@ static void layer_surface_configure(
 	wl_region_destroy(opaque);
 
 	zwlr_layer_surface_v1_ack_configure(layer_surface, serial);
-	assert(oguri_allocate_buffers(output, 2));
+	if (!oguri_allocate_buffers(output, 2)) {
+		fprintf(stderr, "Could not allocate buffers for new surface, attempting to continue for now\n");
+	}
 }
 
 static void layer_surface_closed(

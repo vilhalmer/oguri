@@ -4,6 +4,7 @@
 #define _POSIX_C_SOURCE 200809L
 
 #include <assert.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -34,21 +35,27 @@ struct oguri_buffer * oguri_allocate_buffer(struct oguri_output * output) {
 
 	// O_EXCL shouldn't be necessary here, but I would rather have it fail if
 	// something weird happens.
+	errno = 0;
 	int fd = shm_open("/oguri-buffer", O_RDWR|O_CREAT|O_EXCL, 0600);
 	if (fd < 0) {
-		fprintf(stderr, "Failed to create buffer backing memory\n");
+		fprintf(stderr, "Failed to create buffer backing memory: %s\n",
+				strerror(errno));
 		return NULL;
 	}
 	shm_unlink("/oguri-buffer");
 
+	errno = 0;
 	if (ftruncate(fd, size) < 0) {
+		fprintf(stderr, "Failed to resize buffer memory: %s\n",
+				strerror(errno));
 		close(fd);
 		return NULL;
 	}
 
+	errno = 0;
 	void * data = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
 	if (!data) {
-		fprintf(stderr, "Failed to map backing memory\n");
+		fprintf(stderr, "Failed to map backing memory: %s\n", strerror(errno));
 		close(fd);
 		return NULL;
 	}
