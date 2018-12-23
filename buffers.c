@@ -15,6 +15,29 @@
 #include "oguri.h"
 #include "buffers.h"
 
+static int pid_shm_open(const char * prefix, int oflag, mode_t mode) {
+	static const char format[] = "%s-%d";
+
+	pid_t pid = getpid();
+	int length = snprintf(NULL, 0, format, prefix, pid);
+	if (length < 0) {
+		return -1;
+	}
+	char * name = calloc(1, length);
+	length = snprintf(name, length, format, prefix, pid);
+	if (length < 0) {
+		return -1;
+	}
+
+	int fd = shm_open(name, oflag, mode);
+	if (fd < 0) {
+		return -1;
+	}
+
+	shm_unlink(name);
+	return fd;
+}
+
 static void buffer_handle_release(
 		void *data,
 		struct wl_buffer *wl_buffer __attribute__((unused))) {
@@ -36,7 +59,7 @@ struct oguri_buffer * oguri_allocate_buffer(struct oguri_output * output) {
 	// O_EXCL shouldn't be necessary here, but I would rather have it fail if
 	// something weird happens.
 	errno = 0;
-	int fd = shm_open("/oguri-buffer", O_RDWR|O_CREAT|O_EXCL, 0600);
+	int fd = pid_shm_open("/oguri-buffer", O_RDWR | O_CREAT | O_EXCL, 0600);
 	if (fd < 0) {
 		fprintf(stderr, "Failed to create buffer backing memory: %s\n",
 				strerror(errno));
