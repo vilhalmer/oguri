@@ -23,6 +23,7 @@ static void oguri_mark_first_cycle(GdkPixbuf * image) {
 static void scale_image_onto(
 		cairo_t * cairo,
 		cairo_surface_t * source,
+		cairo_filter_t filter,
 		int32_t buffer_width,
 		int32_t buffer_height,
 		enum oguri_anchor_x anchor_x,
@@ -76,7 +77,7 @@ static void scale_image_onto(
 		cairo_set_source_surface(cairo, source, offset, 0);
 	}
 
-	cairo_pattern_set_filter(cairo_get_source(cairo), CAIRO_FILTER_NEAREST);
+	cairo_pattern_set_filter(cairo_get_source(cairo), filter);
 	cairo_paint(cairo);
 
 	cairo_restore(cairo);
@@ -129,8 +130,8 @@ int oguri_render_frame(struct oguri_animation * anim) {
 			cairo_paint(anim->source_cairo);
 
 			scale_image_onto(
-					cairo, anim->source_surface, output->width, output->height,
-					OGURI_CENTER_X, OGURI_CENTER_Y);
+					cairo, anim->source_surface, anim->filter, output->width,
+					output->height, OGURI_CENTER_X, OGURI_CENTER_Y);
 
 			wl_surface_set_buffer_scale(output->surface, output->scale);
 
@@ -180,6 +181,7 @@ struct oguri_animation * oguri_animation_create(
 			gdk_pixbuf_animation_get_width(image),
 			gdk_pixbuf_animation_get_height(image));
 	anim->source_cairo = cairo_create(anim->source_surface);
+	anim->filter = CAIRO_FILTER_BEST;
 
 	// This is undocumented at best, but the first time through the animation,
 	// every frame is stored in the same pixbuf object. This means that we can

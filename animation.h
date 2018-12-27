@@ -15,6 +15,7 @@ struct oguri_animation {
 	GdkPixbufAnimationIter * frame_iter;
 	cairo_surface_t * source_surface;
 	cairo_t * source_cairo;
+	cairo_filter_t filter;
 
 	unsigned int frame_count;
 	unsigned int frame_index;
