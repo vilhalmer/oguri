@@ -162,6 +162,13 @@ int main(int argc, char * argv[]) {
 
 	// If the output wasn't a number, we have to look up all the names.
 	if (wl_list_empty(&animation->outputs)) {
+		if (!oguri.output_manager) {
+			fprintf(stderr,
+					"Compositor does not support xdg-output-manager, you'll"
+					"need to specify an output index instead of a name.\n");
+			return 1;
+		}
+
 		wl_list_for_each(output, &oguri.idle_outputs, link) {
 			if (strcmp(output->name, output_name) == 0) {
 				wl_list_remove(&output->link);

@@ -168,9 +168,13 @@ struct oguri_output * oguri_output_create(
 		return NULL;
 	}
 
-	struct zxdg_output_v1 * xdg_output = zxdg_output_manager_v1_get_xdg_output(
-			oguri->output_manager, output->output);
-	zxdg_output_v1_add_listener(xdg_output, &xdg_output_listener, output);
+	// xdg-output support is optional, so we need to check for it.
+	if (oguri->output_manager) {
+		struct zxdg_output_v1 * xdg_output =
+			zxdg_output_manager_v1_get_xdg_output(
+					oguri->output_manager, output->output);
+		zxdg_output_v1_add_listener(xdg_output, &xdg_output_listener, output);
+	}
 
 	zwlr_layer_surface_v1_set_size(output->layer_surface, 0, 0);
 	zwlr_layer_surface_v1_set_anchor(output->layer_surface,
