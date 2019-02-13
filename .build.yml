@@ -1,0 +1,17 @@
+image: archlinux
+packages:
+  - meson
+  - wayland
+  - wayland-protocols
+  - cairo
+  - gtk3
+  - gdk-pixbuf2
+sources:
+  - https://github.com/vilhalmer/oguri
+tasks:
+  - setup: |
+      cd oguri
+      meson build
+  - build: |
+      cd oguri
+      ninja -C build
