@@ -224,9 +224,14 @@ int main(int argc, char * argv[]) {
 		// attempting to draw again.
 		if (events[OGURI_WAYLAND_EVENT].revents & POLLIN) {
 			if (wl_display_read_events(oguri.display) != 0) {
-				fprintf(stderr, "Failed to read Wayland events: %s\n",
-					strerror(errno));
-				break;
+				if (errno == 104) {
+					// Compositor disconnected us, exit quietly.
+				}
+				else {
+					fprintf(stderr, "Failed to read Wayland events: %s\n",
+							strerror(errno));
+				}
+				oguri.run = false;
 			}
 		}
 		else {
