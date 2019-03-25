@@ -1,10 +1,13 @@
 #define _POSIX_C_SOURCE 200809L
+#include <assert.h>
 #include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <wordexp.h>
+
+#include <wayland-client.h>
 
 #include "config.h"
 #include "oguri.h"
@@ -13,7 +16,7 @@
 // Configurators
 //
 
-int configure_global(
+bool configure_global(
 		struct oguri_state * oguri,
 		char * name __attribute__((unused)),
 		char * property,
@@ -22,31 +25,144 @@ int configure_global(
 	(void)oguri;
 	(void)property;
 	(void)value;
-	return -1;
+	return false;
 }
 
-int configure_image(
+bool configure_image(
 		struct oguri_state * oguri,
 		char * image_name,
 		char * property,
 		char * value) {
-	(void)oguri;
-	(void)image_name;
-	(void)property;
-	(void)value;
-	return -1;
+	struct oguri_image_config * image = NULL;
+
+	// Try to find an existing config that matches the name.
+	struct oguri_image_config * cfg = NULL;
+	wl_list_for_each(cfg, &oguri->image_configs, link) {
+		if (strcmp(cfg->name, image_name) == 0) {
+			image = cfg;
+			break;
+		}
+	}
+
+	// If we didn't find one, make a new one.
+	// TODO: Should we avoid creating this until the property is validated?
+	if (!image) {
+		image = calloc(1, sizeof(struct oguri_image_config));
+		if (!image) {
+			fprintf(stderr, "Failed to allocate memory for image config\n");
+			return false;
+		}
+		wl_list_init(&image->link);
+		wl_list_insert(oguri->image_configs.prev, &image->link);
+
+		image->name = strdup(image_name);
+		image->filter = CAIRO_FILTER_BEST;
+	}
+
+	if (strcmp(property, "path") == 0) {
+		image->path = strdup(value);
+		return true;
+	}
+	else if (strcmp(property, "filter") == 0) {
+		// https://cairographics.org/manual/cairo-cairo-pattern-t.html#cairo-filter-t
+		if (strcmp(value, "fast") == 0) {
+			image->filter = CAIRO_FILTER_FAST;
+			return true;
+		}
+		else if (strcmp(value, "good") == 0) {
+			image->filter = CAIRO_FILTER_GOOD;
+			return true;
+		}
+		else if (strcmp(value, "best") == 0) {
+			image->filter = CAIRO_FILTER_BEST;
+			return true;
+		}
+		else if (strcmp(value, "nearest") == 0) {
+			image->filter = CAIRO_FILTER_NEAREST;
+			return true;
+		}
+		else if (strcmp(value, "bilinear") == 0) {
+			image->filter = CAIRO_FILTER_BILINEAR;
+			return true;
+		}
+		else {
+			fprintf(stderr, "Unknown filter: '%s'\n", value);
+			return false;
+		}
+	}
+	else {
+		fprintf(stderr, "Invalid image property: '%s'\n", property);
+		return false;
+	}
+
+	assert(!"Unreached");
 }
 
-int configure_output(
+bool configure_output(
 		struct oguri_state * oguri,
 		char * output_name,
 		char * property,
 		char * value) {
-	(void)oguri;
-	(void)output_name;
-	(void)property;
-	(void)value;
-	return -1;
+	struct oguri_output_config * output = NULL;
+
+	// Try to find an existing config that matches the name.
+	struct oguri_output_config * cfg = NULL;
+	wl_list_for_each(cfg, &oguri->output_configs, link) {
+		if (strcmp(cfg->name, output_name) == 0) {
+			output = cfg;
+			break;
+		}
+	}
+
+	// If we didn't find one, make a new one.
+	// TODO: Should we avoid creating this until the property is validated?
+	if (!output) {
+		output = calloc(1, sizeof(struct oguri_output_config));
+		if (!output) {
+			fprintf(stderr, "Failed to allocate memory for output config\n");
+			return false;
+		}
+		wl_list_init(&output->link);
+		wl_list_insert(oguri->output_configs.prev, &output->link);
+
+		output->name = strdup(output_name);
+		output->scaling_mode = SCALING_MODE_FILL;
+		output->anchor = ANCHOR_CENTER;
+	}
+
+	if (strcmp(property, "image") == 0) {
+		struct oguri_image_config * image;
+		wl_list_for_each(image, &oguri->image_configs, link) {
+			if (strcmp(image->name, value) == 0) {
+				output->image = image;
+				return true;
+			}
+		}
+		fprintf(stderr, "Unknown image: '%s' (has it been configured?)\n",
+				value);
+		return false;
+	}
+	else if (strcmp(property, "scaling-mode") == 0) {
+		if (strcmp(value, "fill") == 0) {
+			output->scaling_mode = SCALING_MODE_FILL;
+			return true;
+		}
+		// TODO: All the other scaling modes.
+		else {
+			fprintf(stderr, "Unknown scaling mode: '%s'\n", value);
+			return false;
+		}
+	}
+	else if (strcmp(property, "anchor") == 0) {
+		// TODO
+		return false;
+	}
+	else {
+		fprintf(stderr, "Invalid output property: '%s'\n", property);
+		return false;
+	}
+
+	assert(!"Unreached");
 }
 
 oguri_configurator_t * configurator_from_string(const char * name) {
