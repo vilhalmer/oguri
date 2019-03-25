@@ -26,6 +26,7 @@ executable(
 	files([
 		'animation.c',
 		'buffers.c',
+		'config.c',
 		'oguri.c',
 		'output.c',
 	]),
