@@ -3,8 +3,10 @@
 
 #define CAIRO_FMT CAIRO_FORMAT_ARGB32
 
+#include <cairo.h>
 #include <wayland-client.h>
-#include "cairo.h"
+
+#include "output.h"
 
 struct oguri_buffer {
 	struct wl_list link;  // oguri_output::buffer_ring;

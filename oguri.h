@@ -4,7 +4,6 @@
 #include <poll.h>
 #include <stdbool.h>
 #include <wayland-client.h>
-#include "output.h"
 
 // These are used to reserve a few pollfd slots for static stuff.
 enum oguri_events {

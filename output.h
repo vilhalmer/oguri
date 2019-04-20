@@ -4,22 +4,13 @@
 #include <wayland-client.h>
 #include <cairo.h>
 
+#include "config.h"
+
 struct oguri_state;
-
-enum oguri_anchor_x {
-	OGURI_CENTER_X = 0,
-	OGURI_LEFT,
-	OGURI_RIGHT,
-};
-
-enum oguri_anchor_y {
-	OGURI_CENTER_Y = 0,
-	OGURI_TOP,
-	OGURI_BOTTOM,
-};
 
 struct oguri_output {
 	struct oguri_state * oguri;
+	struct oguri_output_config * config;
 	struct wl_list link;  // oguri_state::outputs
 
 	char * name;

@@ -26,8 +26,7 @@ static void scale_image_onto(
 		cairo_filter_t filter,
 		int32_t buffer_width,
 		int32_t buffer_height,
-		enum oguri_anchor_x anchor_x,
-		enum oguri_anchor_y anchor_y) {
+		int anchor) {  // TODO: Probably should re-expose this enum.
 	// TODO: I guess I should implement the other scaling modes as well even
 	// though fill is the only correct one.
 	double width = cairo_image_surface_get_width(source);
@@ -43,17 +42,15 @@ static void scale_image_onto(
 		scale = (double)buffer_width / width;
 		cairo_scale(cairo, scale, scale);
 
-		double offset = 0;
-		switch (anchor_y) {
-		case OGURI_CENTER_Y:
-			offset = ((double)buffer_height / 2 / scale) - (height / 2);
-			break;
-		case OGURI_TOP:
+		double offset = 0.0;
+		if (anchor & ANCHOR_TOP) {
 			offset = 0.0;
-			break;
-		case OGURI_BOTTOM:
+		}
+		else if (anchor & ANCHOR_BOTTOM) {
 			offset = ((double)buffer_height / scale) - height;
-			break;
+		}
+		else {  // ANCHOR_CENTER
+			offset = ((double)buffer_height / 2 / scale) - (height / 2);
 		}
 
 		cairo_set_source_surface(cairo, source, 0, offset);
@@ -62,16 +59,14 @@ static void scale_image_onto(
 		cairo_scale(cairo, scale, scale);
 
 		double offset = 0;
-		switch (anchor_x) {
-		case OGURI_CENTER_X:
-			offset = ((double)buffer_width / 2 / scale) - (width / 2);
-			break;
-		case OGURI_LEFT:
+		if (anchor & ANCHOR_LEFT) {
 			offset = 0.0;
-			break;
-		case OGURI_RIGHT:
+		}
+		else if (anchor & ANCHOR_RIGHT) {
 			offset = ((double)buffer_width / scale) - width;
-			break;
+		}
+		else {  // ANCHOR_CENTER
+			offset = ((double)buffer_width / 2 / scale) - (width / 2);
 		}
 
 		cairo_set_source_surface(cairo, source, offset, 0);
@@ -131,7 +126,7 @@ int oguri_render_frame(struct oguri_animation * anim) {
 
 			scale_image_onto(
 					cairo, anim->source_surface, anim->filter, output->width,
-					output->height, OGURI_CENTER_X, OGURI_CENTER_Y);
+					output->height, output->config->anchor);
 
 			wl_surface_set_buffer_scale(output->surface, output->scale);
 
