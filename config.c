@@ -278,11 +278,19 @@ int load_config_file(struct oguri_state * oguri, const char * path) {
 			}
 
 			free(section_name);
-			section_name = strdup(saveptr);
+			section_name = strdup(strtok_r(NULL, "]", &saveptr));
+
+			if (!section_name) {
+				fprintf(stderr, "[%s:%d] No closing bracket found\n",
+						filename, lineno);
+				ret = -1;
+				break;
+			}
+
 			continue;
 		}
 
-		char *eq = strchr(line, '=');
+		char * eq = strchr(line, '=');
 		if (!eq) {
 			fprintf(stderr, "[%s:%d] Expected key=value\n", filename, lineno);
 			ret = -1;
