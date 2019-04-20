@@ -155,8 +155,61 @@ bool configure_output(
 		}
 	}
 	else if (strcmp(property, "anchor") == 0) {
-		// TODO
-		return false;
+		// The anchor property consists of up to two points, separated by a
+		// dash. The order of the points doesn't matter, but some of them are
+		// mutually exclusive. The default is `center-center`, which is the
+		// same as just `center` (zero). Just for fun, we're not actually
+		// restricting the number of components of the anchor. After two, they
+		// all become either no-ops or invalid combos anyway.
+		int anchor = ANCHOR_CENTER;
+
+		char * saveptr;
+		char * point = strtok_r(value, "-", &saveptr);
+		while (point) {
+			if (strcmp(point, "top") == 0) {
+				if (anchor & ANCHOR_BOTTOM) {
+					fprintf(stderr,
+							"Top and bottom anchors are mutually exclusive\n");
+					return false;
+				}
+				anchor |= ANCHOR_TOP;
+			}
+			else if (strcmp(point, "left") == 0) {
+				if (anchor & ANCHOR_RIGHT) {
+					fprintf(stderr,
+							"Left and right anchors are mutually exclusive\n");
+					return false;
+				}
+				anchor |= ANCHOR_LEFT;
+			}
+			else if (strcmp(point, "bottom") == 0) {
+				if (anchor & ANCHOR_TOP) {
+					fprintf(stderr,
+							"Top and bottom anchors are mutually exclusive\n");
+					return false;
+				}
+				anchor |= ANCHOR_BOTTOM;
+			}
+			else if (strcmp(point, "right") == 0) {
+				if (anchor & ANCHOR_LEFT) {
+					fprintf(stderr,
+							"Left and right anchors are mutually exclusive\n");
+					return false;
+				}
+				anchor |= ANCHOR_RIGHT;
+			}
+			else if (strcmp(point, "center") == 0) {
+				// Center is actually just a no-op.
+			}
+			else {
+				fprintf(stderr, "Invalid anchor point: '%s'\n", point);
+				return false;
+			}
+
+			point = strtok_r(NULL, "-", &saveptr);
+		}
+		output->anchor = anchor;
+		return true;
 	}
 	else {
 		fprintf(stderr, "Invalid output property: '%s'\n", property);
@@ -299,10 +352,10 @@ int load_config_file(struct oguri_state * oguri, const char * path) {
 
 		eq[0] = '\0';
 
-		ret = configurator(oguri, section_name, line, eq + 1);
-		if (ret < 0) {
+		if (!configurator(oguri, section_name, line, eq + 1)) {
 			fprintf(stderr, "[%s:%d] Failed to parse property '%s'\n",
 				filename, lineno, line);
+			ret = -1;
 			break;
 		}
 	}
