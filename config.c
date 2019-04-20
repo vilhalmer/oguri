@@ -197,26 +197,39 @@ static char * expand_config_path(const char * path) {
 	}
 
 	wordexp_t p = {0};
-	if (wordexp(path, &p, 0) == 0) {
-		if (p.we_wordv[0] && access(path, R_OK) != -1) {
-			char * expanded = strdup(p.we_wordv[0]);
-			wordfree(&p);
-			return expanded;
-		}
+
+	errno = 0;
+	if (wordexp(path, &p, WRDE_UNDEF) != 0 || errno != 0) {
+		perror("Shell expansion error");
+		wordfree(&p);
+		return NULL;
 	}
 
-	return NULL;
+	if (access(p.we_wordv[0], R_OK) == -1 || errno != 0) {
+		perror(p.we_wordv[0]);
+		wordfree(&p);
+		return NULL;
+	}
+
+	char * expanded = strdup(p.we_wordv[0]);
+	if (!expanded) {
+		perror("Agh");
+		return NULL;
+	}
+
+	wordfree(&p);
+	return expanded;
 }
 
 int load_config_file(struct oguri_state * oguri, const char * path) {
 	char * expanded_path = expand_config_path(path);
-	if (!path) {
-		return 0;
+	if (!expanded_path) {
+		return -1;
 	}
 
-	FILE * config_file = fopen(path, "r");
+	FILE * config_file = fopen(expanded_path, "r");
 	if (!config_file) {
-		fprintf(stderr, "Unable to open %s for reading\n", path);
+		perror(expanded_path);
 		free(expanded_path);
 		return -1;
 	}
