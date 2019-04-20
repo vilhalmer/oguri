@@ -102,6 +102,8 @@ static const char usage[] =
 
 int main(int argc, char * argv[]) {
 	struct oguri_state oguri = {0};
+	wl_list_init(&oguri.image_configs);
+	wl_list_init(&oguri.output_configs);
 	wl_list_init(&oguri.idle_outputs);
 	wl_list_init(&oguri.animations);
 
