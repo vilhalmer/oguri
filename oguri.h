@@ -2,9 +2,11 @@
 #define _OGURI_H
 
 #include <poll.h>
+#include <stdbool.h>
 #include <wayland-client.h>
 #include "output.h"
 
+// These are used to reserve a few pollfd slots for static stuff.
 enum oguri_events {
 	OGURI_WAYLAND_EVENT,
 	OGURI_TIMER_EVENT,
@@ -15,6 +17,8 @@ struct oguri_state {
 	bool run;
 	bool oneshot;  // Whether to exit when an active display disconnects.
 
+	size_t fd_count;  // How many dynamic pollfds are active.
+
 	struct wl_display * display;
 	struct wl_registry * registry;
 	struct wl_compositor * compositor;
@@ -22,6 +26,9 @@ struct oguri_state {
 
 	struct zwlr_layer_shell_v1 * layer_shell;
 	struct zxdg_output_manager_v1 * output_manager;
+
+	struct wl_list image_configs;  // oguri_image_config::link
+	struct wl_list output_configs;  // oguri_output_config::link
 
 	struct wl_list idle_outputs;  // oguri_output::link
 	struct wl_list animations;  // oguri_animation::link

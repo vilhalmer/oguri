@@ -22,6 +22,7 @@
 
 #include "oguri.h"
 #include "animation.h"
+#include "config.h"
 #include "output.h"
 
 
@@ -90,45 +91,41 @@ bool set_timer_milliseconds(int timer_fd, unsigned int delay) {
 // Main
 //
 
-static const char usage[] = "Usage: oguri [-s] <output> <path>\n";
-
-static bool parse_int(const char *s, int *out) {
-	errno = 0;
-	char *end;
-	*out = (int)strtol(s, &end, 10);
-	return errno == 0 && end[0] == '\0';
-}
+static const char usage[] =
+	"Usage: oguri [-c <config-path>]\n"
+	"\n"
+	"  -c  Path to the configuration file to use.\n"
+	"      (default: $XDG_CONFIG_HOME/oguri/config)\n"
+	"  -h  Show this text.\n"
+	"\n"
+	"To control oguri while it is running, use `ogurictl`.\n";
 
 int main(int argc, char * argv[]) {
-	if (argc < 3) {
-		printf(usage);
-		return 1;
-	}
-
 	struct oguri_state oguri = {0};
 	wl_list_init(&oguri.idle_outputs);
 	wl_list_init(&oguri.animations);
 
-	bool swaybg_compat = false;
+	char * config_path = strdup("$XDG_CONFIG_HOME/oguri/config");
 
-	int argi = 1;
-	if (strcmp(argv[argi], "-s") == 0) {
-		oguri.oneshot = swaybg_compat = true;
-		++argi;
+	for (int argi = 1; argi < argc; ++argi) {
+		if (strcmp(argv[argi], "-c") == 0) {
+			free(config_path);
+			config_path = strdup(argv[++argi]);
+		}
+		else if (strcmp(argv[argi], "-h") == 0) {
+			printf(usage);
+			return 0;
+		}
+		else {
+			fprintf(stderr, usage);
+			return 1;
+		}
 	}
 
-	char * output_name = argv[argi++];
-	char * image_path = argv[argi++];
-
-	if (argi < argc && swaybg_compat) {
-		fprintf(stderr, "Note: Scaling modes are not yet implemented\n");
-	}
-
-	struct oguri_animation * animation = oguri_animation_create(
-			&oguri, image_path);
-
-	if (!animation) {
-		return 3;
+	int load_status = load_config_file(&oguri, config_path);
+	free(config_path);
+	if (load_status < 0) {
+		return 1;
 	}
 
 	oguri.display = wl_display_connect(NULL);
@@ -145,59 +142,53 @@ int main(int argc, char * argv[]) {
 	// Parse the requested output as a number if we're in swaybg mode.
 	// Note that we'll still fall back to parsing it as a name, even though
 	// we'd never expect to get that from sway.
-	int output_number = -1;
 	struct oguri_output * output;
 
-	if (swaybg_compat && parse_int(output_name, &output_number)) {
-		int i = 0;
-		wl_list_for_each(output, &oguri.idle_outputs, link) {
-			if (i == output_number) {
-				wl_list_remove(&output->link);
-				wl_list_insert(&animation->outputs, &output->link);
-				break;
-			}
-			++i;
-		}
-	}
+	//if (parse_int(output_name, &output_number)) {
+	//	int i = 0;
+	//	wl_list_for_each(output, &oguri.idle_outputs, link) {
+	//		if (i == output_number) {
+	//			wl_list_remove(&output->link);
+	//			wl_list_insert(&animation->outputs, &output->link);
+	//			break;
+	//		}
+	//		++i;
+	//	}
+	//}
 
 	// If the output wasn't a number, we have to look up all the names.
-	if (wl_list_empty(&animation->outputs)) {
-		if (!oguri.output_manager) {
-			fprintf(stderr,
-					"Compositor does not support xdg-output-manager, you'll"
-					"need to specify an output index instead of a name.\n");
-			return 1;
-		}
+	//if (wl_list_empty(&animation->outputs)) {
+	//	if (!oguri.output_manager) {
+	//		fprintf(stderr,
+	//				"Compositor does not support xdg-output-manager, you'll"
+	//				"need to specify an output index instead of a name.\n");
+	//		return 1;
+	//	}
 
-		wl_list_for_each(output, &oguri.idle_outputs, link) {
-			if (strcmp(output->name, output_name) == 0) {
-				wl_list_remove(&output->link);
-				wl_list_insert(&animation->outputs, &output->link);
-				break;
-			}
-		}
-	}
-
-	// If we still haven't found a matching output, RIP.
-	if (wl_list_empty(&animation->outputs)) {
-		fprintf(stderr, "Could not find an output named '%s'\n",output_name);
-		return 2;
-	}
+	//	wl_list_for_each(output, &oguri.idle_outputs, link) {
+	//		if (strcmp(output->name, output_name) == 0) {
+	//			wl_list_remove(&output->link);
+	//			wl_list_insert(&animation->outputs, &output->link);
+	//			break;
+	//		}
+	//	}
+	//}
 
 	// Set up our poll descriptors.
 	int polled = 0;
-	struct pollfd events[] = {
-		[OGURI_WAYLAND_EVENT] = (struct pollfd) {
-			.fd = wl_display_get_fd(oguri.display),
-			.events = POLLIN,
-		},
-		[OGURI_TIMER_EVENT] = (struct pollfd) {
-			.fd = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC),
-			.events = POLLIN,
-		}
+	struct pollfd events[25];
+
+	events[OGURI_WAYLAND_EVENT] = (struct pollfd) {
+		.fd = wl_display_get_fd(oguri.display),
+		.events = POLLIN,
 	};
 
-	if (!set_timer_milliseconds(events[OGURI_TIMER_EVENT].fd, 1)) {  // ASAP
+	events[1] = (struct pollfd) {  // TODO: Move to output config
+		.fd = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC),
+		.events = POLLIN,
+	};
+
+	if (!set_timer_milliseconds(events[1].fd, 1)) {  // ASAP
 		fprintf(stderr, "Unable to schedule first timer\n");
 	}
 
@@ -259,7 +250,7 @@ int main(int argc, char * argv[]) {
 				break;
 			}
 
-			int delay = oguri_render_frame(animation);
+			int delay = 0;//oguri_render_frame(animation); XXX
 			if (delay > 0) {
 				set_timer_milliseconds(fd, (unsigned int)delay);
 			}

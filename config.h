@@ -1,6 +1,7 @@
 #ifndef _OGURI_CONFIG_H
 #define _OGURI_CONFIG_H
 
+#include <stdbool.h>
 #include <cairo.h>
 
 #include "oguri.h"

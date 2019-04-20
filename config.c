@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 #include <assert.h>
+#include <errno.h>
 #include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -215,7 +216,7 @@ int load_config_file(struct oguri_state * oguri, const char * path) {
 
 	FILE * config_file = fopen(path, "r");
 	if (!config_file) {
-		fprintf(stderr, "Unable to open %s for reading", path);
+		fprintf(stderr, "Unable to open %s for reading\n", path);
 		free(expanded_path);
 		return -1;
 	}
