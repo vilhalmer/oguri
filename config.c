@@ -18,14 +18,11 @@
 //
 
 bool configure_global(
-		struct oguri_state * oguri,
+		struct oguri_state * oguri __attribute__((unused)),
 		char * name __attribute__((unused)),
-		char * property,
-		char * value) {
-	// TODO: Do I even need this?
-	(void)oguri;
-	(void)property;
-	(void)value;
+		char * property __attribute__((unused)),
+		char * value __attribute__((unused))) {
+	fprintf(stderr, "Not in an output or image section\n");
 	return false;
 }
 
