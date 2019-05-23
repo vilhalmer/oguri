@@ -1,14 +1,22 @@
 #ifndef _OGURI_ANIMATION_H
 #define _OGURI_ANIMATION_H
 
+#include <poll.h>
+#include <cairo.h>
 #include <wayland-client.h>
 #include <gdk-pixbuf/gdk-pixbuf.h>
+
+#include "config.h"
 
 struct oguri_state;
 
 struct oguri_animation {
 	struct oguri_state * oguri;
 	struct wl_list link;
+
+	// In order to update our timer for each frame, we keep a reference to the
+	// timerfd that we placed into oguri::events.
+	int timerfd;
 
 	char * path;
 	GdkPixbufAnimation * image;

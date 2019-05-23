@@ -8,7 +8,6 @@
 // These are used to reserve a few pollfd slots for static stuff.
 enum oguri_events {
 	OGURI_WAYLAND_EVENT,
-	OGURI_TIMER_EVENT,
 	OGURI_EVENT_COUNT,  // last
 };
 
@@ -16,7 +15,8 @@ struct oguri_state {
 	bool run;
 	bool oneshot;  // Whether to exit when an active display disconnects.
 
-	size_t fd_count;  // How many dynamic pollfds are active.
+	struct pollfd events[25];
+	size_t fd_count;
 
 	struct wl_display * display;
 	struct wl_registry * registry;

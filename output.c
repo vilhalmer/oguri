@@ -10,6 +10,7 @@
 #include "xdg-output-unstable-v1-client-protocol.h"
 
 #include "oguri.h"
+#include "animation.h"
 #include "output.h"
 #include "buffers.h"
 
@@ -61,6 +62,26 @@ static void layer_surface_configure(
 	if (!oguri_allocate_buffers(output, 2)) {
 		fprintf(stderr, "Could not allocate buffers for new surface, attempting to continue for now\n");
 	}
+
+	// Shove ourselves into the appropriate animation, now that we're ready to
+	// draw things.
+	// TODO: The way we determine which animation to use is currently a hack.
+	// The exact relationship between image configs and animations is TBD.
+	wl_list_remove(&output->link);
+	if (output->config && output->config->image) {
+		struct oguri_animation * anim;
+		wl_list_for_each(anim, &output->oguri->animations, link) {
+			if (strcmp(anim->path, output->config->image->path) == 0) {
+				wl_list_insert(anim->outputs.prev, &output->link);
+				break;
+			}
+		}
+	}
+	else {
+		wl_list_insert(output->oguri->idle_outputs.prev, &output->link);
+	}
+
+	// TODO: Schedule a frame?
 }
 
 static void layer_surface_closed(
@@ -103,7 +124,26 @@ static void handle_xdg_output_name(
 		void * data,
 		struct zxdg_output_v1 * xdg_output __attribute__((unused)),
 		const char *name) {
-	((struct oguri_output *) data)->name = strdup(name);
+	struct oguri_output * output = (struct oguri_output *)data;
+	output->name = strdup(name);
+	output->config = NULL;  // Reset it in case the match changes to wildcard.
+
+	struct oguri_output_config * opc, * wildcard_opc = NULL;
+	wl_list_for_each(opc, &output->oguri->output_configs, link) {
+		if (strcmp(opc->name, output->name) == 0) {
+			output->config = opc;
+			break;
+		}
+		if (strcmp(opc->name, "*") == 0) {
+			// Collect this as we pass by if it exists, so we can apply it if
+			// there's no exact match.
+			wildcard_opc = opc;
+		}
+	}
+
+	if (!output->config) {
+		output->config = wildcard_opc;
+	}
 }
 
 static void handle_xdg_output_done(
@@ -187,9 +227,14 @@ struct oguri_output * oguri_output_create(
 			&layer_surface_listener, output);
 	wl_surface_commit(output->surface);
 
+	wl_list_insert(oguri->idle_outputs.prev, &output->link);
+
+	// Get the rest of the output properties. Retrieving the name will trigger
+	// association with an oguri_output_config. Configuring the surface will
+	// then add us to an animation. TODO: Do these always happen in the right
+	// order? Might need to do two of these.
 	wl_display_roundtrip(oguri->display);
 
-	wl_list_insert(oguri->idle_outputs.prev, &output->link);
 	return output;
 }
 

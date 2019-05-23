@@ -15,7 +15,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/timerfd.h>
 #include "cairo.h"
 #include "wlr-layer-shell-unstable-v1-client-protocol.h"
 #include "xdg-output-unstable-v1-client-protocol.h"
@@ -68,26 +67,6 @@ static const struct wl_registry_listener registry_listener = {
 };
 
 //
-// Timers
-//
-
-bool set_timer_milliseconds(int timer_fd, unsigned int delay) {
-	struct itimerspec spec = {
-		.it_value = (struct timespec) {
-			.tv_sec = delay / 1000,
-			.tv_nsec = (delay % 1000) * (long)1000000,
-		},
-	};
-	int ret = timerfd_settime(timer_fd, 0, &spec, NULL);
-	if (ret < 0) {
-		fprintf(stderr, "Timer error: %s\n", strerror(errno));
-		return false;
-	}
-
-	return true;
-}
-
-//
 // Main
 //
 
@@ -133,66 +112,23 @@ int main(int argc, char * argv[]) {
 	oguri.display = wl_display_connect(NULL);
 	assert(oguri.display);
 
+	oguri.events[OGURI_WAYLAND_EVENT] = (struct pollfd) {
+		.fd = wl_display_get_fd(oguri.display),
+		.events = POLLIN,
+	};
+	oguri.fd_count = OGURI_EVENT_COUNT;  // Skip to the end of the special ones
+
+	// Have all of the animations ready to go so that outputs can associate
+	// themselves with one as each output appears.
+	struct oguri_image_config * imgc;
+	wl_list_for_each(imgc, &oguri.image_configs, link) {
+		oguri_animation_create(&oguri, imgc->path);
+	}
+
 	oguri.registry = wl_display_get_registry(oguri.display);
 	wl_registry_add_listener(oguri.registry, &registry_listener, &oguri);
 	wl_display_roundtrip(oguri.display);
 	assert(oguri.compositor && oguri.layer_shell && oguri.shm);
-
-	// Second roundtrip to get output properties.
-	wl_display_roundtrip(oguri.display);
-
-	// Parse the requested output as a number if we're in swaybg mode.
-	// Note that we'll still fall back to parsing it as a name, even though
-	// we'd never expect to get that from sway.
-	struct oguri_output * output;
-
-	//if (parse_int(output_name, &output_number)) {
-	//	int i = 0;
-	//	wl_list_for_each(output, &oguri.idle_outputs, link) {
-	//		if (i == output_number) {
-	//			wl_list_remove(&output->link);
-	//			wl_list_insert(&animation->outputs, &output->link);
-	//			break;
-	//		}
-	//		++i;
-	//	}
-	//}
-
-	// If the output wasn't a number, we have to look up all the names.
-	//if (wl_list_empty(&animation->outputs)) {
-	//	if (!oguri.output_manager) {
-	//		fprintf(stderr,
-	//				"Compositor does not support xdg-output-manager, you'll"
-	//				"need to specify an output index instead of a name.\n");
-	//		return 1;
-	//	}
-
-	//	wl_list_for_each(output, &oguri.idle_outputs, link) {
-	//		if (strcmp(output->name, output_name) == 0) {
-	//			wl_list_remove(&output->link);
-	//			wl_list_insert(&animation->outputs, &output->link);
-	//			break;
-	//		}
-	//	}
-	//}
-
-	// Set up our poll descriptors.
-	int polled = 0;
-	struct pollfd events[25];
-
-	events[OGURI_WAYLAND_EVENT] = (struct pollfd) {
-		.fd = wl_display_get_fd(oguri.display),
-		.events = POLLIN,
-	};
-
-	events[1] = (struct pollfd) {  // TODO: Move to output config
-		.fd = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC),
-		.events = POLLIN,
-	};
-
-	if (!set_timer_milliseconds(events[1].fd, 1)) {  // ASAP
-		fprintf(stderr, "Unable to schedule first timer\n");
-	}
 
 	oguri.run = true;
 	while (oguri.run) {
@@ -201,7 +137,7 @@ int main(int argc, char * argv[]) {
 		}
 		wl_display_flush(oguri.display);
 
-		polled = poll(events, OGURI_EVENT_COUNT, -1);
+		int polled = poll(oguri.events, oguri.fd_count, -1);
 		if (polled < 0) {
 			wl_display_cancel_read(oguri.display);
 			if (errno == EINTR) {
@@ -215,7 +151,7 @@ int main(int argc, char * argv[]) {
 
 		// Read wayland events first so we can handle any resizing, etc, before
 		// attempting to draw again.
-		if (events[OGURI_WAYLAND_EVENT].revents & POLLIN) {
+		if (oguri.events[OGURI_WAYLAND_EVENT].revents & POLLIN) {
 			if (wl_display_read_events(oguri.display) != 0) {
 				if (errno == 104) {
 					// Compositor disconnected us, exit quietly.
@@ -237,25 +173,31 @@ int main(int argc, char * argv[]) {
 			break;
 		}
 
-		// Now see if we need to draw the next frame.
-		if (events[OGURI_TIMER_EVENT].revents & POLLIN) {
-			int fd = events[OGURI_TIMER_EVENT].fd;
+		// Now see if we need to draw a frame. In order to associate the
+		// animations with the pollfd, we count as we iterate through them.
+		// This is necessary because pollfds are stored in a boring ol' array.
+		// There is probably a nicer way to do this.
+		int anim_idx = OGURI_EVENT_COUNT;  // Skip the hard-coded fd indexes.
+		struct oguri_animation * anim;
+		wl_list_for_each(anim, &oguri.animations, link) {
+			if (oguri.events[anim_idx].revents & POLLIN) {
+				uint64_t expirations;
+				ssize_t n = read(
+						oguri.events[anim_idx].fd,
+						&expirations,
+						sizeof(expirations));
 
-			uint64_t expirations;
-			ssize_t n = read(
-					events[OGURI_TIMER_EVENT].fd,
-					&expirations,
-					sizeof(expirations));
+				if (n < 0) {
+					fprintf(stderr, "Failed to read timer events\n");
+					break;
+				}
 
-			if (n < 0) {
-				fprintf(stderr, "Failed to read timer events\n");
-				break;
+				// This will update the animation's timerfd automatically if
+				// neccessary. (Spooky!)
+				oguri_render_frame(anim);
 			}
 
-			int delay = 0;//oguri_render_frame(animation); XXX
-			if (delay > 0) {
-				set_timer_milliseconds(fd, (unsigned int)delay);
-			}
+			++anim_idx;
 		}
 	}
 
@@ -266,7 +208,7 @@ int main(int argc, char * argv[]) {
 
 	// At this point, because we've destroyed all of the animations, all
 	// outputs should be idle again and will be cleaned up here.
-	struct oguri_output * output_tmp;
+	struct oguri_output * output, * output_tmp;
 	wl_list_for_each_safe(output, output_tmp, &oguri.idle_outputs, link) {
 		oguri_output_destroy(output);
 	}

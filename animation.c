@@ -1,12 +1,30 @@
 #define _POSIX_C_SOURCE 200809L
 
+#include <errno.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <sys/timerfd.h>
 #include <gdk/gdk.h>
 #include "oguri.h"
 #include "buffers.h"
 #include "output.h"
 #include "animation.h"
+
+static bool set_timer_milliseconds(int timer_fd, unsigned int delay) {
+	struct itimerspec spec = {
+		.it_value = (struct timespec) {
+			.tv_sec = delay / 1000,
+			.tv_nsec = (delay % 1000) * (long)1000000,
+		},
+	};
+	int ret = timerfd_settime(timer_fd, 0, &spec, NULL);
+	if (ret < 0) {
+		fprintf(stderr, "Timer error: %s\n", strerror(errno));
+		return false;
+	}
+
+	return true;
+}
 
 G_DEFINE_QUARK(oguri_new_frame, oguri_new_frame);
 
@@ -147,8 +165,13 @@ int oguri_render_frame(struct oguri_animation * anim) {
 		wl_surface_commit(output->surface);
 	}
 
-	// Return the time that we need to wait before calling render_frame again.
-	return gdk_pixbuf_animation_iter_get_delay_time(anim->frame_iter);
+	// If we've got another frame to display, update our timer.
+	int delay = gdk_pixbuf_animation_iter_get_delay_time(anim->frame_iter);
+	if (delay > 0) {
+		set_timer_milliseconds(anim->timerfd, (unsigned int)delay);
+	}
+
+	return delay;
 }
 
 struct oguri_animation * oguri_animation_create(
@@ -186,6 +209,17 @@ struct oguri_animation * oguri_animation_create(
 	GdkPixbuf * first = gdk_pixbuf_animation_iter_get_pixbuf(anim->frame_iter);
 	oguri_mark_first_cycle(first);
 
+	anim->timerfd = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC);
+
+	oguri->events[oguri->fd_count++] = (struct pollfd) {
+		.fd = anim->timerfd,
+		.events = POLLIN,
+	};
+
+	if (!set_timer_milliseconds(anim->timerfd, 1)) {  // Show first frame ASAP.
+		fprintf(stderr, "Unable to schedule first timer\n");
+	}
+
 	wl_list_insert(oguri->animations.prev, &anim->link);
 	return anim;
 }
@@ -203,6 +237,12 @@ void oguri_animation_destroy(struct oguri_animation * anim) {
 	// want to reassign them to a new animation later. Destroying them doesn't
 	// happen until they are removed from the display, or we are told to exit.
 	wl_list_insert_list(&anim->oguri->idle_outputs, &anim->outputs);
+
+	// TODO: It seems like we should do something about closing the timerfd
+	// in here. However, this will make poll unhappy, because it still has the
+	// same descriptor and expects all of its stuff to be open. We need a way
+	// to signal the poll loop to clean it up on that end. Alternatively we
+	// could keep a pointer to the entire pollfd.
 
 	anim->oguri = NULL;
 	free(anim);

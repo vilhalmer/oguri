@@ -13,6 +13,43 @@
 #include "config.h"
 #include "oguri.h"
 
+static char * expand_config_path(const char * path) {
+	if (!getenv("XDG_CONFIG_HOME")) {
+		char * home = getenv("HOME");
+		if (!home) {
+			return NULL;
+		}
+		char config_home[strlen(home) + strlen("/.config") + 1];
+		strcpy(config_home, home);
+		strcat(config_home, "/.config");
+		setenv("XDG_CONFIG_HOME", config_home, 1);
+	}
+
+	wordexp_t p = {0};
+
+	errno = 0;
+	if (wordexp(path, &p, WRDE_UNDEF) != 0 || errno != 0) {
+		perror("Shell expansion error");
+		wordfree(&p);
+		return NULL;
+	}
+
+	if (access(p.we_wordv[0], R_OK) == -1 || errno != 0) {
+		perror(p.we_wordv[0]);
+		wordfree(&p);
+		return NULL;
+	}
+
+	char * expanded = strdup(p.we_wordv[0]);
+	if (!expanded) {
+		perror("Agh");
+		return NULL;
+	}
+
+	wordfree(&p);
+	return expanded;
+}
+
 //
 // Configurators
 //
@@ -58,7 +95,7 @@ bool configure_image(
 	}
 
 	if (strcmp(property, "path") == 0) {
-		image->path = strdup(value);
+		image->path = expand_config_path(value);
 		return true;
 	}
 	else if (strcmp(property, "filter") == 0) {
@@ -233,43 +270,6 @@ oguri_configurator_t * configurator_from_string(const char * name) {
 //
 // Config file parsing
 //
-
-static char * expand_config_path(const char * path) {
-	if (!getenv("XDG_CONFIG_HOME")) {
-		char * home = getenv("HOME");
-		if (!home) {
-			return NULL;
-		}
-		char config_home[strlen(home) + strlen("/.config") + 1];
-		strcpy(config_home, home);
-		strcat(config_home, "/.config");
-		setenv("XDG_CONFIG_HOME", config_home, 1);
-	}
-
-	wordexp_t p = {0};
-
-	errno = 0;
-	if (wordexp(path, &p, WRDE_UNDEF) != 0 || errno != 0) {
-		perror("Shell expansion error");
-		wordfree(&p);
-		return NULL;
-	}
-
-	if (access(p.we_wordv[0], R_OK) == -1 || errno != 0) {
-		perror(p.we_wordv[0]);
-		wordfree(&p);
-		return NULL;
-	}
-
-	char * expanded = strdup(p.we_wordv[0]);
-	if (!expanded) {
-		perror("Agh");
-		return NULL;
-	}
-
-	wordfree(&p);
-	return expanded;
-}
 
 int load_config_file(struct oguri_state * oguri, const char * path) {
 	char * expanded_path = expand_config_path(path);
