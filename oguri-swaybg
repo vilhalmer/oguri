@@ -1,0 +1,24 @@
+#/bin/sh
+set -e
+set -o pipefail
+
+outputs=""
+images=""
+
+while getopts o:i:m:c: OPTION; do
+	case $OPTION in
+	o)
+		outputs="${outputs}[output $OPTARG]\n"
+		;;
+	i)
+		images="${images}[image $OPTARG]\npath=$OPTARG\n"
+		outputs="${outputs}image=$OPTARG\n"
+		;;
+	m)
+		outputs="${outputs}scaling-mode=$OPTARG\n"
+		;;
+	c) ;;  # No color support.
+	esac
+done
+
+printf "${images}\n${outputs}\n" | oguri -c /dev/stdin
