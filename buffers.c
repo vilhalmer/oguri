@@ -103,15 +103,13 @@ struct oguri_buffer * oguri_allocate_buffer(struct oguri_output * output) {
 	return buffer;
 }
 
-bool oguri_allocate_buffers(struct oguri_output * output, int count) {
-	int current_count = wl_list_length(&output->buffer_ring);
-
-	if (current_count >= count) {
+bool oguri_allocate_buffers(struct oguri_output * output, unsigned int count) {
+	if (output->buffer_count >= count) {
 		// TODO: We could shrink the pool here to free up some memory.
 		return true;
 	}
 
-	for (; current_count < count; ++current_count) {
+	for (; output->buffer_count < count; ++output->buffer_count) {
 		struct oguri_buffer * new_buffer = oguri_allocate_buffer(output);
 		if (!new_buffer) {
 			return false;

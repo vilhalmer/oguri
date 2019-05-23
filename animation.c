@@ -117,16 +117,13 @@ int oguri_render_frame(struct oguri_animation * anim) {
 		struct oguri_buffer * buffer = oguri_next_buffer(output);
 
 		if (output->cached_frames < anim->frame_count) {
-			if (!first_cycle && anim->frame_index == 0) {
-				// This is a bit hacky. When we're past the first cycle, we
-				// want to have as many buffers as the animation has frames,
-				// because then we can keep each resized frame in a buffer
-				// instead of re-scaling it each time. We also only need to
-				// resize our buffer ring once and it will stay at that size,
-				// so we just do it on frame zero of the cycle. Since we're
-				// only doing this when the animation is uncached, and it will
-				// be cached by the end of the second cycle, this happens once
-				// (barring any display reconfiguration).
+			if (!first_cycle) {
+				// When we're past the first cycle, we want to have as many
+				// buffers as the animation has frames, because then we can
+				// keep each resized frame in a buffer instead of re-scaling it
+				// each time. However, we don't know which frame we started on,
+				// so just attempt to resize every frame until we've cached
+				// them all.
 				if (!oguri_allocate_buffers(output, anim->frame_count)) {
 					// TODO: This will freeze us at the current frame, probably
 					// should quit instead.

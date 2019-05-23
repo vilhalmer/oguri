@@ -25,6 +25,7 @@ struct oguri_output {
 
 	unsigned int cached_frames;
 	struct wl_list buffer_ring;  // oguri_buffer::link
+	unsigned int buffer_count;
 };
 
 struct oguri_output * oguri_output_create(
