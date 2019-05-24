@@ -122,7 +122,7 @@ int main(int argc, char * argv[]) {
 	// themselves with one as each output appears.
 	struct oguri_image_config * imgc;
 	wl_list_for_each(imgc, &oguri.image_configs, link) {
-		oguri_animation_create(&oguri, imgc->path);
+		oguri_animation_create(&oguri, imgc);
 	}
 
 	oguri.registry = wl_display_get_registry(oguri.display);

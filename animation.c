@@ -172,12 +172,13 @@ int oguri_render_frame(struct oguri_animation * anim) {
 }
 
 struct oguri_animation * oguri_animation_create(
-		struct oguri_state * oguri, const char * path) {
+		struct oguri_state * oguri, struct oguri_image_config * config) {
 	GError * error = NULL;
-	GdkPixbufAnimation * image = gdk_pixbuf_animation_new_from_file(path, &error);
+	GdkPixbufAnimation * image = gdk_pixbuf_animation_new_from_file(
+			config->path, &error);
 
 	if (error || !image) {
-		fprintf(stderr, "Could not open image '%s'", path);
+		fprintf(stderr, "Could not open image '%s'", config->path);
 		return NULL;
 	}
 
@@ -185,7 +186,7 @@ struct oguri_animation * oguri_animation_create(
 	wl_list_init(&anim->outputs);
 
 	anim->oguri = oguri;
-	anim->path = strdup(path);
+	anim->path = strdup(config->path);
 	anim->image = image;
 	anim->frame_iter = gdk_pixbuf_animation_get_iter(image, NULL);
 
@@ -196,7 +197,7 @@ struct oguri_animation * oguri_animation_create(
 			gdk_pixbuf_animation_get_width(image),
 			gdk_pixbuf_animation_get_height(image));
 	anim->source_cairo = cairo_create(anim->source_surface);
-	anim->filter = CAIRO_FILTER_BEST;
+	anim->filter = config->filter;
 
 	// This is undocumented at best, but the first time through the animation,
 	// every frame is stored in the same pixbuf object. This means that we can
