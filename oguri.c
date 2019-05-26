@@ -34,7 +34,7 @@
 
 static int signal_pipe[2];
 void signal_handler(int number) {
-	write(signal_pipe[1], &number, sizeof(number));
+	(void)write(signal_pipe[1], &number, sizeof(number));  // Best effort here.
 }
 
 //
@@ -300,7 +300,7 @@ int main(int argc, char * argv[]) {
 			}
 			else {
 				printf("WOW A COMMAND: %s", command);
-				write(client, &"okey dokey\n", 11);
+				(void)write(client, &"okey dokey\n", 11);
 				close(client);
 				oguri.events[OGURI_IPC_CLIENT_EVENT].fd = -1;
 			}
