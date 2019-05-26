@@ -34,7 +34,11 @@
 
 static int signal_pipe[2];
 void signal_handler(int number) {
-	(void)write(signal_pipe[1], &number, sizeof(number));  // Best effort here.
+	if (write(signal_pipe[1], &number, sizeof(number)) < 0) {
+		// Ignoring the error, there's nothing to be done about it in here.
+		// Need to look at it to placate gcc, though.
+		// https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66425
+	}
 }
 
 //
@@ -300,7 +304,9 @@ int main(int argc, char * argv[]) {
 			}
 			else {
 				printf("WOW A COMMAND: %s", command);
-				(void)write(client, &"okey dokey\n", 11);
+				if (write(client, &"okey dokey\n", 11) < 0) {
+					fprintf(stderr, "Error replying to ipc command\n");
+				}
 				close(client);
 				oguri.events[OGURI_IPC_CLIENT_EVENT].fd = -1;
 			}
