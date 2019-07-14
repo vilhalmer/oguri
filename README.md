@@ -1,6 +1,8 @@
 # oguri
 ### A very nice animated wallpaper daemon for Wayland compositors
 
+[![builds.sr.ht status](https://builds.sr.ht/~vilhalmer/oguri.svg)](https://builds.sr.ht/~vilhalmer/oguri?)
+
 	>> oguri -h
 	Usage: oguri [-c <config-path>]
 
