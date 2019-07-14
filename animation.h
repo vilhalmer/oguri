@@ -4,8 +4,8 @@
 #include <poll.h>
 #include <cairo.h>
 #include <wayland-client.h>
-#include <gdk-pixbuf/gdk-pixbuf.h>
 
+#include "cairo-pixbuf.h"
 #include "config.h"
 
 struct oguri_state;
@@ -22,7 +22,6 @@ struct oguri_animation {
 	GdkPixbufAnimation * image;
 	GdkPixbufAnimationIter * frame_iter;
 	cairo_surface_t * source_surface;
-	cairo_t * source_cairo;
 	cairo_filter_t filter;
 
 	unsigned int frame_count;

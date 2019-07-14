@@ -4,7 +4,6 @@ packages:
   - wayland
   - wayland-protocols
   - cairo
-  - gtk3
   - gdk-pixbuf2
 sources:
   - https://github.com/vilhalmer/oguri

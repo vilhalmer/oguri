@@ -4,7 +4,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <sys/timerfd.h>
-#include <gdk/gdk.h>
 #include "oguri.h"
 #include "buffers.h"
 #include "output.h"
@@ -100,7 +99,6 @@ int oguri_render_frame(struct oguri_animation * anim) {
 	gdk_pixbuf_animation_iter_advance(anim->frame_iter, NULL);
 	GdkPixbuf * image = gdk_pixbuf_animation_iter_get_pixbuf(anim->frame_iter);
 
-	// TODO: Maybe we should cache this on the animation?
 	bool first_cycle = oguri_is_first_cycle(image);
 	if (first_cycle) {
 		++anim->frame_count;
@@ -133,15 +131,13 @@ int oguri_render_frame(struct oguri_animation * anim) {
 				}
 			}
 
-			cairo_t *cairo = buffer->cairo;
-
 			// Draw the frame into our source surface, at its native size.
-			gdk_cairo_set_source_pixbuf(anim->source_cairo, image, 0, 0);
-			cairo_paint(anim->source_cairo);
+			oguri_cairo_surface_paint_pixbuf(anim->source_surface, image);
 
+			// Then scale it into the buffer.
 			scale_image_onto(
-					cairo, anim->source_surface, anim->filter, output->width,
-					output->height, output->config->anchor);
+					buffer->cairo, anim->source_surface, anim->filter,
+					output->width, output->height, output->config->anchor);
 
 			wl_surface_set_buffer_scale(output->surface, output->scale);
 
@@ -188,16 +184,8 @@ struct oguri_animation * oguri_animation_create(
 	anim->oguri = oguri;
 	anim->path = strdup(config->path);
 	anim->image = image;
-	anim->frame_iter = gdk_pixbuf_animation_get_iter(image, NULL);
-
-	// We need a cairo surface of the image's size to draw each frame into
-	// while scaling them up. This is as good a place for it as any.
-	anim->source_surface = cairo_image_surface_create(
-			CAIRO_FMT,
-			gdk_pixbuf_animation_get_width(image),
-			gdk_pixbuf_animation_get_height(image));
-	anim->source_cairo = cairo_create(anim->source_surface);
 	anim->filter = config->filter;
+	anim->frame_iter = gdk_pixbuf_animation_get_iter(image, NULL);
 
 	// This is undocumented at best, but the first time through the animation,
 	// every frame is stored in the same pixbuf object. This means that we can
@@ -206,6 +194,17 @@ struct oguri_animation * oguri_animation_create(
 	// a cycle, so this will have to do.
 	GdkPixbuf * first = gdk_pixbuf_animation_iter_get_pixbuf(anim->frame_iter);
 	oguri_mark_first_cycle(first);
+
+	// We're going to make the wild assumption that every frame in the
+	// animation has the same number of channels.
+	int channel_count = gdk_pixbuf_get_n_channels(first);
+
+	// We need a cairo surface of the image's size to draw each frame into
+	// while scaling them up. This is as good a place for it as any.
+	anim->source_surface = cairo_image_surface_create(
+			(channel_count == 3) ? CAIRO_FORMAT_RGB24 : CAIRO_FORMAT_ARGB32,
+			gdk_pixbuf_animation_get_width(image),
+			gdk_pixbuf_animation_get_height(image));
 
 	anim->timerfd = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC);
 
@@ -226,7 +225,6 @@ void oguri_animation_destroy(struct oguri_animation * anim) {
 	wl_list_remove(&anim->link);
 
 	cairo_surface_destroy(anim->source_surface);
-	cairo_destroy(anim->source_cairo);
 	g_object_unref(anim->image);
 	g_object_unref(anim->frame_iter);
 	free(anim->path);

@@ -12,7 +12,6 @@ project(
 )
 
 cairo = dependency('cairo')
-gdk = dependency('gdk-3.0')
 gdk_pixbuf = dependency('gdk-pixbuf-2.0')
 wayland_client = dependency('wayland-client')
 wayland_protocols = dependency('wayland-protocols', version: '>=1.14')
@@ -26,13 +25,13 @@ executable(
 	files([
 		'animation.c',
 		'buffers.c',
+		'cairo-pixbuf.c',
 		'config.c',
 		'oguri.c',
 		'output.c',
 	]),
 	dependencies: [
 		cairo,
-		gdk,
 		gdk_pixbuf,
 		wayland_client,
 		client_protos,
