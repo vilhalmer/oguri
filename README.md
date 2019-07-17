@@ -77,8 +77,12 @@ The host compositor must support the following protocols:
 - wlr-layer-shell-unstable-v1
 - xdg-output-unstable-v1
 
-Available [on the AUR](https://aur.archlinux.org/packages/oguri-git/) thanks
-to [lamcw](https://github.com/lamcw)!
+Available from the following packagers:
+
+- [Arch Linux AUR](https://aur.archlinux.org/packages/oguri-git/) thanks
+to [lamcw](https://github.com/lamcw)
+- [nixpkgs-wayland](https://github.com/colemickens/nixpkgs-wayland) thanks to
+[colemickens](https://github.com/colemickens)
 
 ## Resource usage
 
