@@ -136,8 +136,12 @@ int oguri_render_frame(struct oguri_animation * anim) {
 
 			// Then scale it into the buffer.
 			scale_image_onto(
-					buffer->cairo, anim->source_surface, anim->filter,
-					output->width, output->height, output->config->anchor);
+					buffer->cairo,
+					anim->source_surface,
+					anim->filter,
+					output->width * output->scale,
+					output->height * output->scale,
+					output->config->anchor);
 
 			wl_surface_set_buffer_scale(output->surface, output->scale);
 

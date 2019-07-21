@@ -49,8 +49,10 @@ static const struct wl_buffer_listener buffer_listener = {
 };
 
 struct oguri_buffer * oguri_allocate_buffer(struct oguri_output * output) {
-	uint32_t stride = cairo_format_stride_for_width(CAIRO_FMT, output->width);
-	size_t size = stride * output->height;
+	uint32_t stride = cairo_format_stride_for_width(
+			CAIRO_FMT,
+			output->width * output->scale);
+	size_t size = stride * output->height * output->scale;
 	if (size < 1) {
 		fprintf(stderr, "Tiny buffer\n");
 		return NULL;
@@ -88,7 +90,10 @@ struct oguri_buffer * oguri_allocate_buffer(struct oguri_output * output) {
 	struct wl_shm_pool * pool = wl_shm_create_pool(
 			output->oguri->shm, fd, size);
 	buffer->backing = wl_shm_pool_create_buffer(
-			pool, 0, output->width, output->height, stride,
+			pool, 0,
+			output->width * output->scale,
+			output->height * output->scale,
+			stride,
 			WL_SHM_FORMAT_ARGB8888);
 	wl_buffer_add_listener(buffer->backing, &buffer_listener, buffer);
 
@@ -97,7 +102,11 @@ struct oguri_buffer * oguri_allocate_buffer(struct oguri_output * output) {
 
 	buffer->data = data;
 	buffer->cairo_surface = cairo_image_surface_create_for_data(
-			data, CAIRO_FMT, output->width, output->height, stride);
+			data,
+			CAIRO_FMT,
+			output->width * output->scale,
+			output->height * output->scale,
+			stride);
 	buffer->cairo = cairo_create(buffer->cairo_surface);
 
 	return buffer;
