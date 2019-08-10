@@ -232,8 +232,7 @@ void oguri_output_destroy(struct oguri_output * output) {
 
 	struct oguri_buffer * buffer, * tmp;
 	wl_list_for_each_safe(buffer, tmp, &output->buffer_ring, link) {
-		wl_list_remove(&buffer->link);
-		// TODO: oguri_buffer_destroy
+		oguri_buffer_destroy(buffer);
 	}
 
 	free(output);

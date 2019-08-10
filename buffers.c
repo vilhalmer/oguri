@@ -101,6 +101,7 @@ struct oguri_buffer * oguri_allocate_buffer(struct oguri_output * output) {
 	close(fd);
 
 	buffer->data = data;
+	buffer->size = size;
 	buffer->cairo_surface = cairo_image_surface_create_for_data(
 			data,
 			CAIRO_FMT,
@@ -136,4 +137,15 @@ struct oguri_buffer * oguri_next_buffer(struct oguri_output * output) {
 	wl_list_insert(output->buffer_ring.prev, &current->link);
 
 	return wl_container_of(output->buffer_ring.next, current, link);
+}
+
+void oguri_buffer_destroy(struct oguri_buffer * buffer) {
+	wl_list_remove(&buffer->link);
+
+	cairo_destroy(buffer->cairo);
+	cairo_surface_destroy(buffer->cairo_surface);
+	wl_buffer_destroy(buffer->backing);
+
+	munmap(buffer->data, buffer->size);
+	free(buffer);
 }
