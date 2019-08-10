@@ -17,8 +17,6 @@ enum oguri_events {
 
 struct oguri_state {
 	bool run;
-	bool oneshot;  // Whether to exit when an active display disconnects.
-
 	struct pollfd events[25];
 	size_t fd_count;
 

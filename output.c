@@ -88,26 +88,6 @@ static void layer_surface_closed(
 		void * data,
 		struct zwlr_layer_surface_v1 * layer_surface __attribute__((unused))) {
 	struct oguri_output * output = data;
-	if (output->oguri->oneshot) {
-		// We were instructed to shut down when our display disappeared.
-		// However, this function is called for all of the displays we know
-		// about, not just the one in use. So, we need to check if the one that
-		// just disappeared was idle or not.
-		//
-		// We assume that it is active until we've found it in the idle list,
-		// because there's no global list of active outputs.
-		bool is_active = true;
-		struct oguri_output * idle_output;
-		wl_list_for_each(idle_output, &output->oguri->idle_outputs, link) {
-			if (idle_output == output) {
-				is_active = false;
-				break;
-			}
-		}
-
-		// If it was active, we're ready to exit. Otherwise, keep running.
-		output->oguri->run = !is_active;
-	}
 	oguri_output_destroy(output);
 }
 
