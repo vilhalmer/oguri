@@ -138,7 +138,7 @@ int oguri_render_frame(struct oguri_animation * anim) {
 			scale_image_onto(
 					buffer->cairo,
 					anim->source_surface,
-					anim->filter,
+					output->config->filter,
 					output->width * output->scale,
 					output->height * output->scale,
 					output->config->anchor);
@@ -172,13 +172,13 @@ int oguri_render_frame(struct oguri_animation * anim) {
 }
 
 struct oguri_animation * oguri_animation_create(
-		struct oguri_state * oguri, struct oguri_image_config * config) {
+		struct oguri_state * oguri, char * image_path) {
 	GError * error = NULL;
 	GdkPixbufAnimation * image = gdk_pixbuf_animation_new_from_file(
-			config->path, &error);
+			image_path, &error);
 
 	if (error || !image) {
-		fprintf(stderr, "Could not open image '%s'", config->path);
+		fprintf(stderr, "Could not open image: '%s'\n", image_path);
 		return NULL;
 	}
 
@@ -186,9 +186,8 @@ struct oguri_animation * oguri_animation_create(
 	wl_list_init(&anim->outputs);
 
 	anim->oguri = oguri;
-	anim->path = strdup(config->path);
+	anim->path = strdup(image_path);
 	anim->image = image;
-	anim->filter = config->filter;
 	anim->frame_iter = gdk_pixbuf_animation_get_iter(image, NULL);
 
 	// This is undocumented at best, but the first time through the animation,

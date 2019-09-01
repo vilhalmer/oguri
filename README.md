@@ -18,35 +18,27 @@
 
 ## Configuration
 
-The configuration file is ini-style. It consists of two types of sections,
-outputs and images. Here's an example:
-
-	[image default]
-	path=$XDG_CONFIG_HOME/wallpaper
-	filter=nearest
+The configuration file is ini-style. Here's an example:
 
 	[output LVDS-1]
-	image=default
+	image=$XDG_CONFIG_HOME/wallpaper
+	filter=nearest
 	scaling-mode=fill
 	anchor=center
 
-Each image can be applied to any number of outputs. Outputs displaying the same
-image share the animation timer, and are therefore always in sync.
+Outputs displaying the same image share the animation timer, and are therefore
+always in sync.
 
 The output name `*` will match any output not specified elsewhere in the file.
 To find your output names, consult your compositor's manual.
 
 ### Output options
 
-- `image`: Name of the previously configured image to display on this output
+- `image`: Path to the image on disk, environment variables and ~ are expanded.
 - `scaling-mode`: How to scale the image to fit on the output. Currently only
 	`fill` is supported.
 - `anchor`: Some combination of `top`, `bottom`, `left`, `right`, and `center`.
 	Can be combined with dashes, such as `center-left`.
-
-### Image options
-
-- `path`: Path to the image on disk, environment variables and ~ are expanded.
 - `filter`: Scaling filter to use. Supported values:
 	- `fast`: Quickest
 	- `good`: Balance of speed and quality

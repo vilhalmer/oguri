@@ -147,7 +147,6 @@ static const char usage[] =
 
 int main(int argc, char * argv[]) {
 	struct oguri_state oguri = {0};
-	wl_list_init(&oguri.image_configs);
 	wl_list_init(&oguri.output_configs);
 	wl_list_init(&oguri.idle_outputs);
 	wl_list_init(&oguri.animations);
@@ -209,13 +208,6 @@ int main(int argc, char * argv[]) {
 		.events = POLLIN,
 	};
 	oguri.fd_count = OGURI_EVENT_COUNT;  // Skip to the end of the special ones
-
-	// Have all of the animations ready to go so that outputs can associate
-	// themselves with one as each output appears.
-	struct oguri_image_config * imgc;
-	wl_list_for_each(imgc, &oguri.image_configs, link) {
-		oguri_animation_create(&oguri, imgc);
-	}
 
 	oguri.registry = wl_display_get_registry(oguri.display);
 	wl_registry_add_listener(oguri.registry, &registry_listener, &oguri);

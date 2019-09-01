@@ -30,9 +30,7 @@ struct oguri_state {
 
 	struct sockaddr_un ipc_sock;
 
-	struct wl_list image_configs;  // oguri_image_config::link
 	struct wl_list output_configs;  // oguri_output_config::link
-
 	struct wl_list idle_outputs;  // oguri_output::link
 	struct wl_list animations;  // oguri_animation::link
 };

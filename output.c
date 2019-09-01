@@ -63,24 +63,6 @@ static void layer_surface_configure(
 		fprintf(stderr, "Could not allocate buffers for new surface, attempting to continue for now\n");
 	}
 
-	// Shove ourselves into the appropriate animation, now that we're ready to
-	// draw things.
-	// TODO: The way we determine which animation to use is currently a hack.
-	// The exact relationship between image configs and animations is TBD.
-	wl_list_remove(&output->link);
-	if (output->config && output->config->image) {
-		struct oguri_animation * anim;
-		wl_list_for_each(anim, &output->oguri->animations, link) {
-			if (strcmp(anim->path, output->config->image->path) == 0) {
-				wl_list_insert(anim->outputs.prev, &output->link);
-				break;
-			}
-		}
-	}
-	else {
-		wl_list_insert(output->oguri->idle_outputs.prev, &output->link);
-	}
-
 	// TODO: Schedule a frame?
 }
 
@@ -195,6 +177,9 @@ struct oguri_output * oguri_output_create(
 					oguri->output_manager, output->output);
 		zxdg_output_v1_add_listener(xdg_output, &xdg_output_listener, output);
 	}
+	else {
+		// TODO: Need to assign name as str of index and manually associate.
+	}
 
 	zwlr_layer_surface_v1_set_size(output->layer_surface, 0, 0);
 	zwlr_layer_surface_v1_set_anchor(output->layer_surface,
@@ -207,13 +192,42 @@ struct oguri_output * oguri_output_create(
 			&layer_surface_listener, output);
 	wl_surface_commit(output->surface);
 
-	wl_list_insert(oguri->idle_outputs.prev, &output->link);
-
 	// Get the rest of the output properties. Retrieving the name will trigger
-	// association with an oguri_output_config. Configuring the surface will
-	// then add us to an animation. TODO: Do these always happen in the right
-	// order? Might need to do two of these.
+	// association with an oguri_output_config.
 	wl_display_roundtrip(oguri->display);
+
+	// At this point, we have a configuration if one exists. That means we can
+	// either find an existing animation that matches our image_path, or create
+	// a new one.
+	struct oguri_animation * found_anim = NULL;
+	if (output->config) {
+		wl_list_remove(&output->link);
+
+		struct oguri_animation * anim;
+		wl_list_for_each(anim, &output->oguri->animations, link) {
+			if (strcmp(anim->path, output->config->image_path) == 0) {
+				found_anim = anim;
+				break;
+			}
+		}
+
+		if (!found_anim) {
+			// No animation exists, so make one. Note that this may still fail,
+			// in which case this output will become idle.
+			// TODO: It would be better to get any possible failures out of the
+			// way at config time. The primary one is the image not existing,
+			// which could be easily checked without creating an animation.
+			found_anim = oguri_animation_create(oguri,
+					output->config->image_path);
+		}
+	}
+
+	if (found_anim) {
+		wl_list_insert(found_anim->outputs.prev, &output->link);
+	}
+	else {
+		wl_list_insert(oguri->idle_outputs.prev, &output->link);
+	}
 
 	return output;
 }

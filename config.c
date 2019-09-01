@@ -59,78 +59,8 @@ bool configure_global(
 		char * name __attribute__((unused)),
 		char * property __attribute__((unused)),
 		char * value __attribute__((unused))) {
-	fprintf(stderr, "Not in an output or image section\n");
+	fprintf(stderr, "Not in an output section\n");
 	return false;
-}
-
-bool configure_image(
-		struct oguri_state * oguri,
-		char * image_name,
-		char * property,
-		char * value) {
-	struct oguri_image_config * image = NULL;
-
-	// Try to find an existing config that matches the name.
-	struct oguri_image_config * cfg = NULL;
-	wl_list_for_each(cfg, &oguri->image_configs, link) {
-		if (strcmp(cfg->name, image_name) == 0) {
-			image = cfg;
-			break;
-		}
-	}
-
-	// If we didn't find one, make a new one.
-	// TODO: Should we avoid creating this until the property is validated?
-	if (!image) {
-		image = calloc(1, sizeof(struct oguri_image_config));
-		if (!image) {
-			fprintf(stderr, "Failed to allocate memory for image config\n");
-			return false;
-		}
-		wl_list_init(&image->link);
-		wl_list_insert(oguri->image_configs.prev, &image->link);
-
-		image->name = strdup(image_name);
-		image->filter = CAIRO_FILTER_BEST;
-	}
-
-	if (strcmp(property, "path") == 0) {
-		image->path = expand_config_path(value);
-		return true;
-	}
-	else if (strcmp(property, "filter") == 0) {
-		// https://cairographics.org/manual/cairo-cairo-pattern-t.html#cairo-filter-t
-		if (strcmp(value, "fast") == 0) {
-			image->filter = CAIRO_FILTER_FAST;
-			return true;
-		}
-		else if (strcmp(value, "good") == 0) {
-			image->filter = CAIRO_FILTER_GOOD;
-			return true;
-		}
-		else if (strcmp(value, "best") == 0) {
-			image->filter = CAIRO_FILTER_BEST;
-			return true;
-		}
-		else if (strcmp(value, "nearest") == 0) {
-			image->filter = CAIRO_FILTER_NEAREST;
-			return true;
-		}
-		else if (strcmp(value, "bilinear") == 0) {
-			image->filter = CAIRO_FILTER_BILINEAR;
-			return true;
-		}
-		else {
-			fprintf(stderr, "Unknown filter: '%s'\n", value);
-			return false;
-		}
-	}
-	else {
-		fprintf(stderr, "Invalid image property: '%s'\n", property);
-		return false;
-	}
-
-	assert(!"Unreached");
 }
 
 bool configure_output(
@@ -161,21 +91,16 @@ bool configure_output(
 		wl_list_insert(oguri->output_configs.prev, &output->link);
 
 		output->name = strdup(output_name);
+		output->image_path = strdup("");
 		output->scaling_mode = SCALING_MODE_FILL;
 		output->anchor = ANCHOR_CENTER;
+		output->filter = CAIRO_FILTER_BEST;
 	}
 
 	if (strcmp(property, "image") == 0) {
-		struct oguri_image_config * image;
-		wl_list_for_each(image, &oguri->image_configs, link) {
-			if (strcmp(image->name, value) == 0) {
-				output->image = image;
-				return true;
-			}
-		}
-		fprintf(stderr, "Unknown image: '%s' (has it been configured?)\n",
-				value);
-		return false;
+		free(output->image_path);
+		output->image_path = expand_config_path(value);
+		return true;
 	}
 	else if (strcmp(property, "scaling-mode") == 0) {
 		if (strcmp(value, "fill") == 0) {
@@ -245,6 +170,33 @@ bool configure_output(
 		output->anchor = anchor;
 		return true;
 	}
+	else if (strcmp(property, "filter") == 0) {
+		// https://cairographics.org/manual/cairo-cairo-pattern-t.html#cairo-filter-t
+		if (strcmp(value, "fast") == 0) {
+			output->filter = CAIRO_FILTER_FAST;
+			return true;
+		}
+		else if (strcmp(value, "good") == 0) {
+			output->filter = CAIRO_FILTER_GOOD;
+			return true;
+		}
+		else if (strcmp(value, "best") == 0) {
+			output->filter = CAIRO_FILTER_BEST;
+			return true;
+		}
+		else if (strcmp(value, "nearest") == 0) {
+			output->filter = CAIRO_FILTER_NEAREST;
+			return true;
+		}
+		else if (strcmp(value, "bilinear") == 0) {
+			output->filter = CAIRO_FILTER_BILINEAR;
+			return true;
+		}
+		else {
+			fprintf(stderr, "Unknown filter: '%s'\n", value);
+			return false;
+		}
+	}
 	else {
 		fprintf(stderr, "Invalid output property: '%s'\n", property);
 		return false;
@@ -256,9 +208,6 @@ bool configure_output(
 oguri_configurator_t * configurator_from_string(const char * name) {
 	if (strcmp(name, "global") == 0) {
 		return configure_global;
-	}
-	else if (strcmp(name, "image") == 0) {
-		return configure_image;
 	}
 	else if (strcmp(name, "output") == 0) {
 		return configure_output;

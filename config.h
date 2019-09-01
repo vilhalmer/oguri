@@ -6,19 +6,13 @@
 
 #include "oguri.h"
 
-struct oguri_image_config {
-	struct wl_list link;  // oguri_state::image_configs
-
-	char * name;
-	char * path;
-	cairo_filter_t filter;
-};
-
 struct oguri_output_config {
 	struct wl_list link;  // oguri_state::output_configs
 
 	char * name;
-	struct oguri_image_config * image;
+	char * image_path;
+
+	cairo_filter_t filter;
 
 	enum {
 		SCALING_MODE_FILL,
