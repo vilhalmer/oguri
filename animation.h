@@ -23,8 +23,8 @@ struct oguri_animation {
 	GdkPixbufAnimationIter * frame_iter;
 	cairo_surface_t * source_surface;
 
+	bool first_cycle;
 	unsigned int frame_count;
-	unsigned int frame_index;
 
 	struct wl_list outputs;  // oguri_output::link
 };

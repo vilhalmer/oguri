@@ -25,18 +25,6 @@ static bool set_timer_milliseconds(int timer_fd, unsigned int delay) {
 	return true;
 }
 
-G_DEFINE_QUARK(oguri_new_frame, oguri_new_frame);
-
-static bool oguri_is_first_cycle(GdkPixbuf * image) {
-	return g_object_get_qdata(G_OBJECT(image), oguri_new_frame_quark()) ==
-		&oguri_is_first_cycle;
-}
-
-static void oguri_mark_first_cycle(GdkPixbuf * image) {
-	g_object_set_qdata(
-			G_OBJECT(image), oguri_new_frame_quark(), &oguri_is_first_cycle);
-}
-
 static void scale_image_onto(
 		cairo_t * cairo,
 		cairo_surface_t * source,
@@ -99,23 +87,24 @@ int oguri_render_frame(struct oguri_animation * anim) {
 	gdk_pixbuf_animation_iter_advance(anim->frame_iter, NULL);
 	GdkPixbuf * image = gdk_pixbuf_animation_iter_get_pixbuf(anim->frame_iter);
 
-	bool first_cycle = oguri_is_first_cycle(image);
-	if (first_cycle) {
+	if (anim->first_cycle) {
 		++anim->frame_count;
 	}
 
-	// Keep track of the fact that we moved forward a frame, looping back to
-	// the beginning if appropriate. Because we increment frame_count at the
-	// beginning, this works just fine the first time through when we don't
-	// actually know the final count yet.
-	anim->frame_index = (anim->frame_index + 1) % anim->frame_count;
+	// It's important to set this _after_ we increment the frame_count for the
+	// final time.
+	bool last_frame = gdk_pixbuf_animation_iter_on_currently_loading_frame(
+			anim->frame_iter);
+	if (last_frame) {
+		anim->first_cycle = false;
+	}
 
 	struct oguri_output * output;
 	wl_list_for_each(output, &anim->outputs, link) {
 		struct oguri_buffer * buffer = oguri_next_buffer(output);
 
 		if (output->cached_frames < anim->frame_count) {
-			if (!first_cycle) {
+			if (!anim->first_cycle) {
 				// When we're past the first cycle, we want to have as many
 				// buffers as the animation has frames, because then we can
 				// keep each resized frame in a buffer instead of re-scaling it
@@ -145,7 +134,7 @@ int oguri_render_frame(struct oguri_animation * anim) {
 
 			wl_surface_set_buffer_scale(output->surface, output->scale);
 
-			if (!first_cycle) {
+			if (!anim->first_cycle) {
 				// We count the number of frames we've cached to know when
 				// we've cached them all, even if we didn't start at the first
 				// frame of the animation. On the first cycle, however, we
@@ -190,16 +179,20 @@ struct oguri_animation * oguri_animation_create(
 	anim->image = image;
 	anim->frame_iter = gdk_pixbuf_animation_get_iter(image, NULL);
 
-	// This is undocumented at best, but the first time through the animation,
-	// every frame is stored in the same pixbuf object. This means that we can
-	// figure out when we've completed an entire cycle by tracking this object
-	// via qdata. There is no supported way to determine when you've completed
-	// a cycle, so this will have to do.
-	GdkPixbuf * first = gdk_pixbuf_animation_iter_get_pixbuf(anim->frame_iter);
-	oguri_mark_first_cycle(first);
+	// There's no way to directly ask for the number of frames in an animation,
+	// because gdk-pixbuf is designed to work with possibly streaming sources.
+	// However, when loading from a file, the final frame is always marked as
+	// the "loading frame". We use this, in combination with the following
+	// flag, to count the frames ourselves. Once we know how many there are, we
+	// can start caching the scaled buffers instead of rescaling each time we
+	// draw. We have to track the total length so we don't allocate an infinite
+	// number of buffers.
+	anim->first_cycle = true;
+	anim->frame_count = 0;
 
 	// We're going to make the wild assumption that every frame in the
 	// animation has the same number of channels.
+	GdkPixbuf * first = gdk_pixbuf_animation_iter_get_pixbuf(anim->frame_iter);
 	int channel_count = gdk_pixbuf_get_n_channels(first);
 
 	// We need a cairo surface of the image's size to draw each frame into
