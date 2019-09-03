@@ -89,9 +89,7 @@ int oguri_render_frame(struct oguri_animation * anim) {
 
 	// If we've got another frame to display, update our timer.
 	int delay = gdk_pixbuf_animation_iter_get_delay_time(anim->frame_iter);
-	if (delay > 0) {
-		set_timer_milliseconds(anim->timerfd, (unsigned int)delay);
-	}
+	oguri_animation_schedule_frame(anim, delay);
 
 	if (anim->first_cycle) {
 		++anim->frame_count;
@@ -160,6 +158,16 @@ int oguri_render_frame(struct oguri_animation * anim) {
 	return delay;
 }
 
+bool oguri_animation_schedule_frame(
+		struct oguri_animation * anim, unsigned int delay) {
+	if (delay > 0) {
+		return set_timer_milliseconds(anim->timerfd, (unsigned int)delay);
+	}
+	else {
+		return true;
+	}
+}
+
 struct oguri_animation * oguri_animation_create(
 		struct oguri_state * oguri, char * image_path) {
 	GError * error = NULL;
@@ -209,7 +217,7 @@ struct oguri_animation * oguri_animation_create(
 		.events = POLLIN,
 	};
 
-	if (!set_timer_milliseconds(anim->timerfd, 1)) {  // Show first frame ASAP.
+	if (!oguri_animation_schedule_frame(anim, 1)) {  // Show first frame ASAP.
 		fprintf(stderr, "Unable to schedule first timer\n");
 	}
 

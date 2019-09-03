@@ -62,8 +62,6 @@ static void layer_surface_configure(
 	if (!oguri_allocate_buffers(output, 2)) {
 		fprintf(stderr, "Could not allocate buffers for new surface, attempting to continue for now\n");
 	}
-
-	// TODO: Schedule a frame?
 }
 
 static void layer_surface_closed(
@@ -224,6 +222,10 @@ struct oguri_output * oguri_output_create(
 
 	if (found_anim) {
 		wl_list_insert(found_anim->outputs.prev, &output->link);
+
+		// Force a render to ensure there's a frame displayed on the output
+		// even if the configured image is static.
+		oguri_animation_schedule_frame(found_anim, 1);
 	}
 	else {
 		wl_list_insert(oguri->idle_outputs.prev, &output->link);

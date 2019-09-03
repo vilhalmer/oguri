@@ -110,21 +110,28 @@ struct oguri_buffer * oguri_allocate_buffer(struct oguri_output * output) {
 			stride);
 	buffer->cairo = cairo_create(buffer->cairo_surface);
 
+	wl_list_insert(output->buffer_ring.prev, &buffer->link);
 	return buffer;
 }
 
 bool oguri_allocate_buffers(struct oguri_output * output, unsigned int count) {
-	if (output->buffer_count >= count) {
-		// TODO: We could shrink the pool here to free up some memory.
-		return true;
-	}
+	struct oguri_buffer * buffer;
 
-	for (; output->buffer_count < count; ++output->buffer_count) {
-		struct oguri_buffer * new_buffer = oguri_allocate_buffer(output);
-		if (!new_buffer) {
-			return false;
+	// If we have too many buffers, shrink the pool instead to recover memory
+	// and prevent getting the animation out of sync.
+	if (output->buffer_count >= count) {
+		for (; output->buffer_count > count; --output->buffer_count) {
+			buffer = wl_container_of(output->buffer_ring.prev, buffer, link);
+			oguri_buffer_destroy(buffer);
 		}
-		wl_list_insert(output->buffer_ring.prev, &new_buffer->link);
+	}
+	else {
+		for (; output->buffer_count < count; ++output->buffer_count) {
+			buffer = oguri_allocate_buffer(output);
+			if (!buffer) {
+				return false;
+			}
+		}
 	}
 	return true;
 }

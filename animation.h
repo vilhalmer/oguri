@@ -30,6 +30,8 @@ struct oguri_animation {
 };
 
 int oguri_render_frame(struct oguri_animation * anim);
+bool oguri_animation_schedule_frame(
+		struct oguri_animation * anim, unsigned int delay);
 struct oguri_animation * oguri_animation_create(
 		struct oguri_state * oguri, char * image_path);
 void oguri_animation_destroy(struct oguri_animation * anim);
