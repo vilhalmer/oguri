@@ -87,6 +87,12 @@ int oguri_render_frame(struct oguri_animation * anim) {
 	gdk_pixbuf_animation_iter_advance(anim->frame_iter, NULL);
 	GdkPixbuf * image = gdk_pixbuf_animation_iter_get_pixbuf(anim->frame_iter);
 
+	// If we've got another frame to display, update our timer.
+	int delay = gdk_pixbuf_animation_iter_get_delay_time(anim->frame_iter);
+	if (delay > 0) {
+		set_timer_milliseconds(anim->timerfd, (unsigned int)delay);
+	}
+
 	if (anim->first_cycle) {
 		++anim->frame_count;
 	}
@@ -149,12 +155,6 @@ int oguri_render_frame(struct oguri_animation * anim) {
 		wl_surface_attach(output->surface, buffer->backing, 0, 0);
 		wl_surface_damage(output->surface, 0, 0, output->width, output->height);
 		wl_surface_commit(output->surface);
-	}
-
-	// If we've got another frame to display, update our timer.
-	int delay = gdk_pixbuf_animation_iter_get_delay_time(anim->frame_iter);
-	if (delay > 0) {
-		set_timer_milliseconds(anim->timerfd, (unsigned int)delay);
 	}
 
 	return delay;
