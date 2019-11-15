@@ -86,24 +86,6 @@ static void handle_xdg_output_name(
 		const char *name) {
 	struct oguri_output * output = (struct oguri_output *)data;
 	output->name = strdup(name);
-	output->config = NULL;  // Reset it in case the match changes to wildcard.
-
-	struct oguri_output_config * opc, * wildcard_opc = NULL;
-	wl_list_for_each(opc, &output->oguri->output_configs, link) {
-		if (strcmp(opc->name, output->name) == 0) {
-			output->config = opc;
-			break;
-		}
-		if (strcmp(opc->name, "*") == 0) {
-			// Collect this as we pass by if it exists, so we can apply it if
-			// there's no exact match.
-			wildcard_opc = opc;
-		}
-	}
-
-	if (!output->config) {
-		output->config = wildcard_opc;
-	}
 }
 
 static void handle_xdg_output_done(
@@ -190,46 +172,13 @@ struct oguri_output * oguri_output_create(
 			&layer_surface_listener, output);
 	wl_surface_commit(output->surface);
 
-	// Get the rest of the output properties. Retrieving the name will trigger
-	// association with an oguri_output_config.
+	// Get the rest of the output properties. We need the name to associate
+	// this output with an oguri_output_config, and oguri_reconfigure assumes
+	// it is already present.
 	wl_display_roundtrip(oguri->display);
 
-	// At this point, we have a configuration if one exists. That means we can
-	// either find an existing animation that matches our image_path, or create
-	// a new one.
-	struct oguri_animation * found_anim = NULL;
-	if (output->config) {
-		wl_list_remove(&output->link);
-
-		struct oguri_animation * anim;
-		wl_list_for_each(anim, &output->oguri->animations, link) {
-			if (strcmp(anim->path, output->config->image_path) == 0) {
-				found_anim = anim;
-				break;
-			}
-		}
-
-		if (!found_anim) {
-			// No animation exists, so make one. Note that this may still fail,
-			// in which case this output will become idle.
-			// TODO: It would be better to get any possible failures out of the
-			// way at config time. The primary one is the image not existing,
-			// which could be easily checked without creating an animation.
-			found_anim = oguri_animation_create(oguri,
-					output->config->image_path);
-		}
-	}
-
-	if (found_anim) {
-		wl_list_insert(found_anim->outputs.prev, &output->link);
-
-		// Force a render to ensure there's a frame displayed on the output
-		// even if the configured image is static.
-		oguri_animation_schedule_frame(found_anim, 1);
-	}
-	else {
-		wl_list_insert(oguri->idle_outputs.prev, &output->link);
-	}
+	wl_list_insert(oguri->idle_outputs.prev, &output->link);
+	oguri_reconfigure(oguri);
 
 	return output;
 }

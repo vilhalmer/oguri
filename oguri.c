@@ -133,6 +133,90 @@ static void oguri_ipc_destroy(struct oguri_state * oguri) {
 }
 
 //
+// Reconfiguration
+//
+
+// oguri_reconfigure is called after configuration changes in such a way that
+// requires outputs to potentially be assigned to different animations. All
+// outputs are returned to the idle_outputs list, and then one-by-one matched
+// to the correct animation again. The animations will continue on their merry
+// way, so outputs which end up back on the same animation will continue from
+// the frame they were on. Finally, any animations which no longer have any
+// outputs assigned will be cleaned up.
+//
+// This is not particularly efficient, but it's extremely simple which makes it
+// unlikely to introduce bugs. We also don't have that many outputs.
+void oguri_reconfigure(struct oguri_state * oguri) {
+	// Return all outputs to the idle list.
+	struct oguri_animation * anim;
+	wl_list_for_each(anim, &oguri->animations, link) {
+		wl_list_insert_list(&oguri->idle_outputs, &anim->outputs);
+		wl_list_init(&anim->outputs);
+	}
+
+	// Now attempt to associate each output with its config, and therefore
+	// animation. This might create new animations as needed.
+	struct oguri_output * output, * tmp;
+	wl_list_for_each_safe(output, tmp, &oguri->idle_outputs, link) {
+		output->config = NULL;  // Reset it in case the match changes to wildcard.
+
+		struct oguri_output_config * opc, * wildcard_opc = NULL;
+		wl_list_for_each(opc, &output->oguri->output_configs, link) {
+			if (strcmp(opc->name, output->name) == 0) {
+				output->config = opc;
+				break;
+			}
+			if (strcmp(opc->name, "*") == 0) {
+				// Collect this as we pass by if it exists, so we can apply it if
+				// there's no exact match.
+				wildcard_opc = opc;
+			}
+		}
+
+		if (!output->config) {
+			output->config = wildcard_opc;
+		}
+
+		struct oguri_animation * found_anim = NULL;
+		if (output->config) {
+			wl_list_for_each(anim, &output->oguri->animations, link) {
+				if (strcmp(anim->path, output->config->image_path) == 0) {
+					found_anim = anim;
+					break;
+				}
+			}
+
+			if (!found_anim) {
+				// No animation exists, so make one. Note that this may still
+				// fail, in which case this output will become idle.
+				// TODO: It would be better to get any possible failures out of
+				// the way at config time. The primary one is the image not
+				// existing, which could be easily checked without creating an
+				// animation.
+				found_anim = oguri_animation_create(oguri,
+						output->config->image_path);
+			}
+		}
+
+		if (found_anim) {
+			wl_list_remove(&output->link);
+			wl_list_insert(found_anim->outputs.prev, &output->link);
+
+			// Force a render to ensure there's a frame displayed on the output
+			// even if the configured image is static.
+			oguri_animation_schedule_frame(found_anim, 1);
+		}
+	}
+
+	// Finally, clean up any animations which no longer have any outputs.
+	wl_list_for_each(anim, &oguri->animations, link) {
+		if (wl_list_empty(&anim->outputs)) {
+			oguri_animation_destroy(anim);
+		}
+	}
+}
+
+//
 // Main
 //
 
@@ -166,12 +250,6 @@ int main(int argc, char * argv[]) {
 			fprintf(stderr, usage);
 			return 1;
 		}
-	}
-
-	int load_status = load_config_file(&oguri, config_path);
-	free(config_path);
-	if (load_status < 0) {
-		return 1;
 	}
 
 	if (pipe(signal_pipe) == -1) {
@@ -213,6 +291,14 @@ int main(int argc, char * argv[]) {
 	wl_registry_add_listener(oguri.registry, &registry_listener, &oguri);
 	wl_display_roundtrip(oguri.display);
 	assert(oguri.compositor && oguri.layer_shell && oguri.shm);
+
+	int load_status = load_config_file(&oguri, config_path);
+	free(config_path);
+	if (load_status < 0) {
+		return 1;
+	}
+
+	oguri_reconfigure(&oguri);
 
 	oguri.run = true;
 	while (oguri.run) {

@@ -35,4 +35,6 @@ struct oguri_state {
 	struct wl_list animations;  // oguri_animation::link
 };
 
+void oguri_reconfigure(struct oguri_state * oguri);
+
 #endif
