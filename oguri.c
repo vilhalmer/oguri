@@ -132,6 +132,23 @@ static void oguri_ipc_destroy(struct oguri_state * oguri) {
 	// TODO: Gracefully disconnect a client if one exists.
 }
 
+static void oguri_ipc_handle_command(
+		struct oguri_state * oguri, const int client) {
+	FILE * ipc_config = fdopen(client, "r");
+	int loaded = load_config(oguri, ipc_config, "ipc");
+	if (loaded == -1) {
+		// TODO: Expose the error messages instead of writing them to oguri's
+		// stderr, where they will go nowhere.
+		if (write(client, &"error\n", 7) < 0) {
+			fprintf(stderr, "Error replying to ipc command\n");
+		}
+	}
+	oguri_reconfigure(oguri);
+
+	close(client);
+	oguri->events[OGURI_IPC_CLIENT_EVENT].fd = -1;
+}
+
 //
 // Reconfiguration
 //
@@ -378,20 +395,7 @@ int main(int argc, char * argv[]) {
 
 		if (oguri.events[OGURI_IPC_CLIENT_EVENT].revents & POLLIN) {
 			int client = oguri.events[OGURI_IPC_CLIENT_EVENT].fd;
-			// 1024 bytes ought to be enough for anybody.
-			char command[1024] = {0};
-			ssize_t bytes_read = read(client, &command, sizeof(command));
-			if (bytes_read == -1) {
-				// Better luck next time.
-			}
-			else {
-				printf("WOW A COMMAND: %s", command);
-				if (write(client, &"okey dokey\n", 11) < 0) {
-					fprintf(stderr, "Error replying to ipc command\n");
-				}
-				close(client);
-				oguri.events[OGURI_IPC_CLIENT_EVENT].fd = -1;
-			}
+			oguri_ipc_handle_command(&oguri, client);
 		}
 
 		// Now see if we need to draw a frame. In order to associate the

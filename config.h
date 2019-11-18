@@ -2,6 +2,7 @@
 #define _OGURI_CONFIG_H
 
 #include <stdbool.h>
+#include <stdio.h>
 #include <cairo.h>
 
 #include "oguri.h"
@@ -36,5 +37,7 @@ typedef bool oguri_configurator_t(struct oguri_state *, char *, char *, char *);
 oguri_configurator_t * configurator_from_string(const char * name);
 
 int load_config_file(struct oguri_state * oguri, const char * path);
+int load_config(struct oguri_state * oguri, FILE * config_file,
+		const char * filename);
 
 #endif

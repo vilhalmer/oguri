@@ -50,7 +50,7 @@ int main(int argc, char * argv[]) {
 	int buffer_loc = 0;
 
 	buffer_loc += snprintf(
-			buffer + buffer_loc, sizeof(buffer) - buffer_loc, "%s", arg);
+			buffer + buffer_loc, sizeof(buffer) - buffer_loc, "[%s ", arg);
 	++argi;
 
 	// We need to find the name argument, which might be anywhere along the
@@ -70,7 +70,8 @@ int main(int argc, char * argv[]) {
 		}
 
 		buffer_loc += snprintf(
-				buffer + buffer_loc, sizeof(buffer) - buffer_loc, "%s", arg);
+				buffer + buffer_loc, sizeof(buffer) - buffer_loc,
+				"%s]\n", arg);
 		name_i = argi;
 		break;
 	}

@@ -2,7 +2,6 @@
 #include <assert.h>
 #include <errno.h>
 #include <libgen.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -234,6 +233,13 @@ int load_config_file(struct oguri_state * oguri, const char * path) {
 	}
 	const char * filename = basename(expanded_path);
 
+	int result = load_config(oguri, config_file, filename);
+	free(expanded_path);
+	return result;
+}
+
+int load_config(struct oguri_state * oguri, FILE * config_file,
+		const char * filename) {
 	// The top of the file is the global section until we hit the first set of
 	// square brackets.
 	oguri_configurator_t * configurator = configure_global;
@@ -309,6 +315,5 @@ int load_config_file(struct oguri_state * oguri, const char * path) {
 	free(section_name);
 	free(line);
 	fclose(config_file);
-	free(expanded_path);
 	return ret;
 }
