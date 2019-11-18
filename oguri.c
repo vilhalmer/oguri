@@ -209,7 +209,8 @@ void oguri_reconfigure(struct oguri_state * oguri) {
 	}
 
 	// Finally, clean up any animations which no longer have any outputs.
-	wl_list_for_each(anim, &oguri->animations, link) {
+	struct oguri_animation * anim_tmp;
+	wl_list_for_each_safe(anim, anim_tmp, &oguri->animations, link) {
 		if (wl_list_empty(&anim->outputs)) {
 			oguri_animation_destroy(anim);
 		}
