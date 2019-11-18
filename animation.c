@@ -87,19 +87,19 @@ int oguri_render_frame(struct oguri_animation * anim) {
 	bool advanced = gdk_pixbuf_animation_iter_advance(anim->frame_iter, NULL);
 	GdkPixbuf * image = gdk_pixbuf_animation_iter_get_pixbuf(anim->frame_iter);
 
-    // If we've got another frame to display, update our timer. Note that while
-    // it isn't documented, the various implementations of this function take
-    // into account the elapsed time of the current frame. This means we can
-    // safely schedule frames early to redraw when new outputs appear without
-    // worrying about the timing of the next frame being wrong.
-    int delay = gdk_pixbuf_animation_iter_get_delay_time(anim->frame_iter);
-    oguri_animation_schedule_frame(anim, delay);
+	// If we've got another frame to display, update our timer. Note that while
+	// it isn't documented, the various implementations of this function take
+	// into account the elapsed time of the current frame. This means we can
+	// safely schedule frames early to redraw when new outputs appear without
+	// worrying about the timing of the next frame being wrong.
+	int delay = gdk_pixbuf_animation_iter_get_delay_time(anim->frame_iter);
+	oguri_animation_schedule_frame(anim, delay);
 
-    // Only count a frame if we actually advanced. If a new output was added,
-    // we may have been called early to render the previous frame again.
-    if (advanced && anim->first_cycle) {
-        ++anim->frame_count;
-    }
+	// Only count a frame if we actually advanced. If a new output was added,
+	// we may have been called early to render the previous frame again.
+	if (advanced && anim->first_cycle) {
+		++anim->frame_count;
+	}
 
 	// It's important to set this _after_ we increment the frame_count for the
 	// final time.
