@@ -202,7 +202,10 @@ struct oguri_animation * oguri_animation_create(
 	// draw. We have to track the total length so we don't allocate an infinite
 	// number of buffers.
 	anim->first_cycle = true;
-	anim->frame_count = 0;
+
+	// The first frame drawn does not advance, so we can't count it. Instead,
+	// just start at 1.
+	anim->frame_count = 1;
 
 	// We're going to make the wild assumption that every frame in the
 	// animation has the same number of channels.
