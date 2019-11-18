@@ -39,3 +39,11 @@ executable(
 	],
 	install: true,
 )
+
+executable(
+	'ogurictl',
+	files([
+		'ogurictl.c',
+	]),
+	install: true,
+)

@@ -261,10 +261,13 @@ int main(int argc, char * argv[]) {
 	int error = sigaction(SIGINT, &act, NULL);
 	error += sigaction(SIGTERM, &act, NULL);
 	error += sigaction(SIGQUIT, &act, NULL);
-    if (error == -1) {
+	if (error < 0) {
 		perror("Unable to install signal handler");
 		return 1;
 	}
+
+	// Ignore SIGPIPE, may occur on the IPC socket.
+	signal(SIGPIPE, SIG_IGN);
 
 	oguri.display = wl_display_connect(NULL);
 	assert(oguri.display);
