@@ -17,6 +17,7 @@ struct oguri_animation {
 	// In order to update our timer for each frame, we keep a reference to the
 	// timerfd that we placed into oguri::events.
 	int timerfd;
+	int event_index;
 
 	char * path;
 	GdkPixbufAnimation * image;

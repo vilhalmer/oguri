@@ -6,19 +6,22 @@
 #include <stdbool.h>
 #include <wayland-client.h>
 
+// Maximum number of events we can keep track of, including both the reserved
+// slots below and any active animations.
+#define OGURI_EVENT_COUNT 25
+
 // These are used to reserve a few pollfd slots for static stuff.
 enum oguri_events {
 	OGURI_SIGNAL_EVENT,
 	OGURI_WAYLAND_EVENT,
 	OGURI_IPC_CONNECT_EVENT,
 	OGURI_IPC_CLIENT_EVENT,
-	OGURI_EVENT_COUNT,  // last
+	OGURI_FIRST_ANIM_EVENT,  // last
 };
 
 struct oguri_state {
 	bool run;
-	struct pollfd events[25];
-	size_t fd_count;
+	struct pollfd events[OGURI_EVENT_COUNT];
 
 	struct wl_display * display;
 	struct wl_registry * registry;

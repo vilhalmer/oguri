@@ -18,7 +18,7 @@ static bool set_timer_milliseconds(int timer_fd, unsigned int delay) {
 	};
 	int ret = timerfd_settime(timer_fd, 0, &spec, NULL);
 	if (ret < 0) {
-		fprintf(stderr, "Timer error: %s\n", strerror(errno));
+		fprintf(stderr, "Timer error (fd %d): %s\n", timer_fd, strerror(errno));
 		return false;
 	}
 
@@ -176,6 +176,19 @@ bool oguri_animation_schedule_frame(
 
 struct oguri_animation * oguri_animation_create(
 		struct oguri_state * oguri, char * image_path) {
+	int event_index = -1;
+	for (size_t i = OGURI_FIRST_ANIM_EVENT; i < OGURI_EVENT_COUNT; ++i) {
+		if (oguri->events[i].fd == -1) {
+			event_index = i;
+			break;
+		}
+	}
+
+	if (event_index == -1) {
+		fprintf(stderr, "No event slots available, too many animations!\n");
+		return NULL;
+	}
+
 	GError * error = NULL;
 	GdkPixbufAnimation * image = gdk_pixbuf_animation_new_from_file(
 			image_path, &error);
@@ -221,10 +234,11 @@ struct oguri_animation * oguri_animation_create(
 
 	anim->timerfd = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC);
 
-	oguri->events[oguri->fd_count++] = (struct pollfd) {
+	oguri->events[event_index] = (struct pollfd) {
 		.fd = anim->timerfd,
 		.events = POLLIN,
 	};
+	anim->event_index = event_index;
 
 	if (!oguri_animation_schedule_frame(anim, 1)) {  // Show first frame ASAP.
 		fprintf(stderr, "Unable to schedule first timer\n");
@@ -236,6 +250,13 @@ struct oguri_animation * oguri_animation_create(
 
 void oguri_animation_destroy(struct oguri_animation * anim) {
 	wl_list_remove(&anim->link);
+
+	// Disable the pollfd entry so that another animation can reuse it later.
+	close(anim->timerfd);
+	anim->oguri->events[anim->event_index] = (struct pollfd) {
+		.fd = -1,
+		.events = 0,  // Not strictly necessary, but eases debugging.
+	};
 
 	cairo_surface_destroy(anim->source_surface);
 	g_object_unref(anim->image);

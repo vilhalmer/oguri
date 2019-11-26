@@ -306,7 +306,13 @@ int main(int argc, char * argv[]) {
 		.fd = -1,  // This event is idle when no client is connected.
 		.events = POLLIN,
 	};
-	oguri.fd_count = OGURI_EVENT_COUNT;  // Skip to the end of the special ones
+
+	// Fill in the rest of the event fds with -1.
+	for (size_t i = OGURI_FIRST_ANIM_EVENT; i < OGURI_EVENT_COUNT; ++i) {
+		oguri.events[i] = (struct pollfd) {
+			.fd = -1,
+		};
+	}
 
 	oguri.registry = wl_display_get_registry(oguri.display);
 	wl_registry_add_listener(oguri.registry, &registry_listener, &oguri);
@@ -328,7 +334,7 @@ int main(int argc, char * argv[]) {
 		}
 		wl_display_flush(oguri.display);
 
-		int polled = poll(oguri.events, oguri.fd_count, -1);
+		int polled = poll(oguri.events, OGURI_EVENT_COUNT, -1);
 		if (polled < 0) {
 			wl_display_cancel_read(oguri.display);
 			continue;
@@ -398,17 +404,13 @@ int main(int argc, char * argv[]) {
 			oguri_ipc_handle_command(&oguri, client);
 		}
 
-		// Now see if we need to draw a frame. In order to associate the
-		// animations with the pollfd, we count as we iterate through them.
-		// This is necessary because pollfds are stored in a boring ol' array.
-		// There is probably a nicer way to do this.
-		int anim_idx = OGURI_EVENT_COUNT;  // Skip the hard-coded fd indexes.
+		// Now see if we need to draw any frames.
 		struct oguri_animation * anim;
 		wl_list_for_each(anim, &oguri.animations, link) {
-			if (oguri.events[anim_idx].revents & POLLIN) {
+			if (oguri.events[anim->event_index].revents & POLLIN) {
 				uint64_t expirations;
 				ssize_t n = read(
-						oguri.events[anim_idx].fd,
+						oguri.events[anim->event_index].fd,
 						&expirations,
 						sizeof(expirations));
 
@@ -421,8 +423,6 @@ int main(int argc, char * argv[]) {
 				// neccessary. (Spooky!)
 				oguri_render_frame(anim);
 			}
-
-			++anim_idx;
 		}
 	}
 
