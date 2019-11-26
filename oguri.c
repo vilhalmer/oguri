@@ -189,7 +189,8 @@ void oguri_reconfigure(struct oguri_state * oguri) {
 	// animation. This might create new animations as needed.
 	struct oguri_output * output, * tmp;
 	wl_list_for_each_safe(output, tmp, &oguri->idle_outputs, link) {
-		output->config = NULL;  // Reset it in case the match changes to wildcard.
+		output->config = NULL;
+		output->cached_frames = 0;
 
 		struct oguri_output_config * opc, * wildcard_opc = NULL;
 		wl_list_for_each(opc, &output->oguri->output_configs, link) {
