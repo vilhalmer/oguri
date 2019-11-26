@@ -134,15 +134,29 @@ static void oguri_ipc_destroy(struct oguri_state * oguri) {
 
 static void oguri_ipc_handle_command(
 		struct oguri_state * oguri, const int client) {
-	FILE * ipc_config = fdopen(client, "r");
+	// Duplicate the IPC descriptor before attempting to load config from it
+	// because load_config closes the descriptor when it's done.
+	int config_fd = dup(client);
+	if (config_fd < 0) {
+		perror("Could not duplicate IPC file descriptor");
+		write(client, "Unable to read config from IPC\n", 33);
+		close(client);
+		return;
+	}
+
+	FILE * ipc_config = fdopen(config_fd, "r");
 	int loaded = load_config(oguri, ipc_config, "ipc");
 	if (loaded == -1) {
 		// TODO: Expose the error messages instead of writing them to oguri's
 		// stderr, where they will go nowhere.
-		if (write(client, &"error\n", 7) < 0) {
+		if (write(client, "Invalid configuration\n", 23) < 0) {
 			fprintf(stderr, "Error replying to ipc command\n");
 		}
 	}
+
+	// TODO: If there was an error reading the config, we might have partially
+	// applied it. We're going to reconfig so that nothing gets out of sync
+	// internally, but this should be fixed in the config handlers.
 	oguri_reconfigure(oguri);
 
 	close(client);
