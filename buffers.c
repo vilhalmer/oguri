@@ -86,6 +86,7 @@ struct oguri_buffer * oguri_allocate_buffer(struct oguri_output * output) {
 	}
 
 	struct oguri_buffer * buffer = calloc(1, sizeof(struct oguri_buffer));
+	wl_list_init(&buffer->link);
 
 	struct wl_shm_pool * pool = wl_shm_create_pool(
 			output->oguri->shm, fd, size);
