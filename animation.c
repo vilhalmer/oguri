@@ -194,7 +194,7 @@ struct oguri_animation * oguri_animation_create(
 			image_path, &error);
 
 	if (error || !image) {
-		fprintf(stderr, "Could not open image: '%s'\n", image_path);
+		fprintf(stderr, "Could not open image '%s': %s\n", image_path, error->message);
 		return NULL;
 	}
 
