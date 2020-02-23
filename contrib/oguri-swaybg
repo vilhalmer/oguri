@@ -11,7 +11,6 @@ while getopts o:i:m:c: OPTION; do
 		outputs="${outputs}[output $OPTARG]\n"
 		;;
 	i)
-		images="${images}[image $OPTARG]\npath=$OPTARG\n"
 		outputs="${outputs}image=$OPTARG\n"
 		;;
 	m)
@@ -21,4 +20,4 @@ while getopts o:i:m:c: OPTION; do
 	esac
 done
 
-printf "${images}\n${outputs}\n" | oguri -c /dev/stdin
+printf "${outputs}\n" | oguri -c /dev/stdin
