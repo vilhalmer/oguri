@@ -20,23 +20,50 @@ static void noop() {}  // For unused listener members.
 // Wayland outputs
 //
 
+static void oguri_recreate_buffers(struct oguri_output * output) {
+	output->cached_frames = 0;
+
+	struct oguri_buffer * buffer, * tmp;
+	wl_list_for_each_safe(buffer, tmp, &output->buffer_ring, link) {
+		oguri_buffer_destroy(buffer);
+	}
+	wl_list_init(&output->buffer_ring);
+
+	// If this is the first time we're being configured, we will have zero
+	// buffers. We always want to have at least two. If it isn't the first
+	// time, we need to reallocate as many as we already had because the
+	// animation loop won't do it for us if it has already finished the first
+	// cycle.
+
+	unsigned int count = (output->buffer_count) ? output->buffer_count : 2;
+	output->buffer_count = 0;
+
+	if (!oguri_allocate_buffers(output, count)) {
+		fprintf(stderr, "Could not allocate buffers!\n");
+		output->oguri->run = false;
+	}
+}
+
 static void handle_output_scale(
 		void * data,
 		struct wl_output * wl_output __attribute__((unused)),
 		int32_t factor) {
 	struct oguri_output * output = data;
 	output->scale = factor;
+}
 
-	// We will almost certainly need to re-create buffers at this point, but
-	// we're going to wait for the layer_surface_configure to let us know if
-	// the resolution changed.
+static void handle_output_done(
+		void * data,
+		struct wl_output * wl_output __attribute__((unused))) {
+	struct oguri_output * output = data;
+	oguri_recreate_buffers(output);
 }
 
 struct wl_output_listener output_listener = {
 	.scale = handle_output_scale,
 	.geometry = noop,
 	.mode = noop,
-	.done = noop,
+	.done = handle_output_done,
 };
 
 //
@@ -58,38 +85,12 @@ static void layer_surface_configure(
 	// z-index on the display.
 	struct wl_region * opaque = wl_compositor_create_region(
 			output->oguri->compositor);
-	assert(opaque);
 	wl_region_add(opaque, 0, 0, output->width, output->height);
 	wl_surface_set_opaque_region(output->surface, opaque);
 	wl_region_destroy(opaque);
 
-	// (Re)create buffers of the size advertised.
-	// TODO: In theory we could get the scale event later than this one and
-	// need to redo it yet again. But, we might not get one at all either!
-
-	output->cached_frames = 0;
-
-	struct oguri_buffer * buffer, * tmp;
-	wl_list_for_each_safe(buffer, tmp, &output->buffer_ring, link) {
-		oguri_buffer_destroy(buffer);
-	}
-	wl_list_init(&output->buffer_ring);
-
-	// If this is the first time we're being configured, we will have zero
-	// buffers. We always want to have at least two. If it isn't the first
-	// time, we need to reallocate as many as we already had because the
-	// animation loop won't do it for us if it has already finished the first
-	// cycle. TODO: Perhaps this should be changed to be more robust.
-
-	unsigned int count = (output->buffer_count) ? output->buffer_count : 2;
-	output->buffer_count = 0;
-
-	if (!oguri_allocate_buffers(output, count)) {
-		fprintf(stderr, "Could not allocate buffers!\n");
-		output->oguri->run = false;
-	}
-
 	zwlr_layer_surface_v1_ack_configure(layer_surface, serial);
+	oguri_recreate_buffers(output);
 }
 
 static void layer_surface_closed(
