@@ -21,6 +21,11 @@ static void noop() {}  // For unused listener members.
 //
 
 static void oguri_recreate_buffers(struct oguri_output * output) {
+	if (!output->width || !output->height) {
+		// Probably in the middle of reconfiguring, will try again later.
+		return;
+	}
+
 	output->cached_frames = 0;
 
 	struct oguri_buffer * buffer, * tmp;
