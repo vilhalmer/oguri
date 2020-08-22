@@ -43,8 +43,13 @@ static void scale_image_onto(
 
 	cairo_save(cairo);
 
-	double scale;
-	cairo_pattern_t * pattern = NULL;
+	cairo_matrix_t matrix;
+	cairo_matrix_init_identity(&matrix);
+	cairo_pattern_t * pattern = cairo_pattern_create_for_surface(source);
+
+	double scale = 0.0;
+	double offset_x = 0.0;
+	double offset_y = 0.0;
 
 	switch (output->config->scaling_mode) {
 	case SCALING_MODE_FILL:
@@ -52,51 +57,45 @@ static void scale_image_onto(
 			scale = (double)buffer_width / width;
 			cairo_scale(cairo, scale, scale);
 
-			double offset = 0.0;
 			if (anchor & ANCHOR_TOP) {
-				offset = 0.0;
+				offset_y = 0.0;
 			}
 			else if (anchor & ANCHOR_BOTTOM) {
-				offset = ((double)buffer_height / scale) - height;
+				offset_y = ((double)buffer_height / scale) - height;
 			}
 			else {  // ANCHOR_CENTER
-				offset = ((double)buffer_height / 2 / scale) - (height / 2);
+				offset_y = ((double)buffer_height / 2 / scale) - (height / 2);
 			}
-
-			cairo_set_source_surface(cairo, source, 0, offset);
 		} else {
 			scale = (double)buffer_height / height;
 			cairo_scale(cairo, scale, scale);
 
-			double offset = 0;
 			if (anchor & ANCHOR_LEFT) {
-				offset = 0.0;
+				offset_x = 0.0;
 			}
 			else if (anchor & ANCHOR_RIGHT) {
-				offset = ((double)buffer_width / scale) - width;
+				offset_x = ((double)buffer_width / scale) - width;
 			}
 			else {  // ANCHOR_CENTER
-				offset = ((double)buffer_width / 2 / scale) - (width / 2);
+				offset_x = ((double)buffer_width / 2 / scale) - (width / 2);
 			}
-
-			cairo_set_source_surface(cairo, source, offset, 0);
 		}
 		break;
 	case SCALING_MODE_STRETCH:
 		cairo_scale(cairo,
 				(double)buffer_width / width,
 				(double)buffer_height / height);
-		cairo_set_source_surface(cairo, source, 0, 0);
 		break;
 	case SCALING_MODE_TILE:
 		cairo_scale(cairo, output->scale, output->scale);
-		pattern = cairo_pattern_create_for_surface(source);
 		cairo_pattern_set_extend(pattern, CAIRO_EXTEND_REPEAT);
-		cairo_set_source(cairo, pattern);
 		break;
 	}
 
-	cairo_pattern_set_filter(cairo_get_source(cairo), filter);
+	cairo_matrix_translate(&matrix, -offset_x, -offset_y);
+	cairo_pattern_set_matrix(pattern, &matrix);
+	cairo_pattern_set_filter(pattern, filter);
+	cairo_set_source(cairo, pattern);
 	cairo_paint(cairo);
 
 	cairo_restore(cairo);
