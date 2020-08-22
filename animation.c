@@ -47,52 +47,72 @@ static void scale_image_onto(
 	cairo_matrix_init_identity(&matrix);
 	cairo_pattern_t * pattern = cairo_pattern_create_for_surface(source);
 
-	double scale = 0.0;
+	double scale_x = 0.0;
+	double scale_y = 0.0;
 	double offset_x = 0.0;
 	double offset_y = 0.0;
 
 	switch (output->config->scaling_mode) {
 	case SCALING_MODE_FILL:
 		if (window_ratio > bg_ratio) {
-			scale = (double)buffer_width / width;
-			cairo_scale(cairo, scale, scale);
+			scale_x = scale_y = (double)buffer_width / width;
 
 			if (anchor & ANCHOR_TOP) {
 				offset_y = 0.0;
 			}
 			else if (anchor & ANCHOR_BOTTOM) {
-				offset_y = ((double)buffer_height / scale) - height;
+				offset_y = ((double)buffer_height / scale_y) - height;
 			}
 			else {  // ANCHOR_CENTER
-				offset_y = ((double)buffer_height / 2 / scale) - (height / 2);
+				offset_y = ((double)buffer_height / 2 / scale_y) - (height / 2);
 			}
 		} else {
-			scale = (double)buffer_height / height;
-			cairo_scale(cairo, scale, scale);
+			scale_x = scale_y = (double)buffer_height / height;
 
 			if (anchor & ANCHOR_LEFT) {
 				offset_x = 0.0;
 			}
 			else if (anchor & ANCHOR_RIGHT) {
-				offset_x = ((double)buffer_width / scale) - width;
+				offset_x = ((double)buffer_width / scale_x) - width;
 			}
 			else {  // ANCHOR_CENTER
-				offset_x = ((double)buffer_width / 2 / scale) - (width / 2);
+				offset_x = ((double)buffer_width / 2 / scale_x) - (width / 2);
 			}
 		}
 		break;
 	case SCALING_MODE_STRETCH:
-		cairo_scale(cairo,
-				(double)buffer_width / width,
-				(double)buffer_height / height);
+		scale_x = (double)buffer_width / width;
+		scale_y = (double)buffer_height / height;
 		break;
 	case SCALING_MODE_TILE:
-		cairo_scale(cairo, output->scale, output->scale);
+		scale_x = scale_y = (double)output->scale;
 		cairo_pattern_set_extend(pattern, CAIRO_EXTEND_REPEAT);
+
+		if (anchor & ANCHOR_LEFT) {
+			offset_x = 0.0;
+		}
+		else if (anchor & ANCHOR_RIGHT) {
+			offset_x = ((double)buffer_width / scale_x) - width;
+		}
+		else {  // ANCHOR_CENTER
+			offset_x = ((double)buffer_width / 2 / scale_x) - (width / 2);
+		}
+
+		if (anchor & ANCHOR_TOP) {
+			offset_y = 0.0;
+		}
+		else if (anchor & ANCHOR_BOTTOM) {
+			offset_y = ((double)buffer_height / scale_y) - height;
+		}
+		else {  // ANCHOR_CENTER
+			offset_y = ((double)buffer_height / 2 / scale_y) - (height / 2);
+		}
+
 		break;
 	}
 
 	cairo_matrix_translate(&matrix, -offset_x, -offset_y);
+	cairo_matrix_scale(&matrix, 1 / scale_x, 1 / scale_y);
 	cairo_pattern_set_matrix(pattern, &matrix);
 	cairo_pattern_set_filter(pattern, filter);
 	cairo_set_source(cairo, pattern);
