@@ -35,8 +35,10 @@ To find your output names, consult your compositor's manual.
 ### Output options
 
 - `image`: Path to the image on disk, environment variables and ~ are expanded.
-- `scaling-mode`: How to scale the image to fit on the output. Currently only
-	`fill` is supported.
+- `scaling-mode`: How to scale the image to fit on the output:
+	- `fill` (default)
+	- `tile`
+	- `stretch`
 - `anchor`: Some combination of `top`, `bottom`, `left`, `right`, and `center`.
 	Can be combined with dashes, such as `center-left`.
 - `filter`: Scaling filter to use. Supported values:
