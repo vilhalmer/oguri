@@ -28,7 +28,7 @@ static bool set_timer_milliseconds(int timer_fd, unsigned int delay) {
 static void scale_image_onto(
 		cairo_t * cairo,
 		cairo_surface_t * source,
-		oguri_output * output) {
+		struct oguri_output * output) {
 	// TODO: Store scaled width/height on buffer so we only need to pass config
 	int32_t buffer_width = output->width * output->scale;
 	int32_t buffer_height = output->height * output->scale;
@@ -44,38 +44,56 @@ static void scale_image_onto(
 	cairo_save(cairo);
 
 	double scale;
-	if (window_ratio > bg_ratio) {
-		scale = (double)buffer_width / width;
-		cairo_scale(cairo, scale, scale);
+	cairo_pattern_t * pattern = NULL;
 
-		double offset = 0.0;
-		if (anchor & ANCHOR_TOP) {
-			offset = 0.0;
-		}
-		else if (anchor & ANCHOR_BOTTOM) {
-			offset = ((double)buffer_height / scale) - height;
-		}
-		else {  // ANCHOR_CENTER
-			offset = ((double)buffer_height / 2 / scale) - (height / 2);
-		}
+	switch (output->config->scaling_mode) {
+	case SCALING_MODE_FILL:
+		if (window_ratio > bg_ratio) {
+			scale = (double)buffer_width / width;
+			cairo_scale(cairo, scale, scale);
 
-		cairo_set_source_surface(cairo, source, 0, offset);
-	} else {
-		scale = (double)buffer_height / height;
-		cairo_scale(cairo, scale, scale);
+			double offset = 0.0;
+			if (anchor & ANCHOR_TOP) {
+				offset = 0.0;
+			}
+			else if (anchor & ANCHOR_BOTTOM) {
+				offset = ((double)buffer_height / scale) - height;
+			}
+			else {  // ANCHOR_CENTER
+				offset = ((double)buffer_height / 2 / scale) - (height / 2);
+			}
 
-		double offset = 0;
-		if (anchor & ANCHOR_LEFT) {
-			offset = 0.0;
-		}
-		else if (anchor & ANCHOR_RIGHT) {
-			offset = ((double)buffer_width / scale) - width;
-		}
-		else {  // ANCHOR_CENTER
-			offset = ((double)buffer_width / 2 / scale) - (width / 2);
-		}
+			cairo_set_source_surface(cairo, source, 0, offset);
+		} else {
+			scale = (double)buffer_height / height;
+			cairo_scale(cairo, scale, scale);
 
-		cairo_set_source_surface(cairo, source, offset, 0);
+			double offset = 0;
+			if (anchor & ANCHOR_LEFT) {
+				offset = 0.0;
+			}
+			else if (anchor & ANCHOR_RIGHT) {
+				offset = ((double)buffer_width / scale) - width;
+			}
+			else {  // ANCHOR_CENTER
+				offset = ((double)buffer_width / 2 / scale) - (width / 2);
+			}
+
+			cairo_set_source_surface(cairo, source, offset, 0);
+		}
+		break;
+	case SCALING_MODE_STRETCH:
+		cairo_scale(cairo,
+				(double)buffer_width / width,
+				(double)buffer_height / height);
+		cairo_set_source_surface(cairo, source, 0, 0);
+		break;
+	case SCALING_MODE_TILE:
+		cairo_scale(cairo, output->scale, output->scale);
+		pattern = cairo_pattern_create_for_surface(source);
+		cairo_pattern_set_extend(pattern, CAIRO_EXTEND_REPEAT);
+		cairo_set_source(cairo, pattern);
+		break;
 	}
 
 	cairo_pattern_set_filter(cairo_get_source(cairo), filter);

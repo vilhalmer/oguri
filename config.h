@@ -18,10 +18,7 @@ struct oguri_output_config {
 	enum {
 		SCALING_MODE_FILL,
 		SCALING_MODE_STRETCH,
-		SCALING_MODE_FIT,
-		SCALING_MODE_CENTER,
 		SCALING_MODE_TILE,
-		SCALING_MODE_COUNT  // Last.
 	} scaling_mode;
 
 	enum {  // Bitmask, top/bottom and left/right are mutually exclusive.

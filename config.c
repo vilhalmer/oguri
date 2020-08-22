@@ -106,7 +106,14 @@ bool configure_output(
 			output->scaling_mode = SCALING_MODE_FILL;
 			return true;
 		}
-		// TODO: All the other scaling modes.
+		else if (strcmp(value, "stretch") == 0) {
+			output->scaling_mode = SCALING_MODE_STRETCH;
+			return true;
+		}
+		else if (strcmp(value, "tile") == 0) {
+			output->scaling_mode = SCALING_MODE_TILE;
+			return true;
+		}
 		else {
 			fprintf(stderr, "Unknown scaling mode: '%s'\n", value);
 			return false;
