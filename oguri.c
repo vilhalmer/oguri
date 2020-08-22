@@ -139,7 +139,7 @@ static void oguri_ipc_handle_command(
 	int config_fd = dup(client);
 	if (config_fd < 0) {
 		perror("Could not duplicate IPC file descriptor");
-		if (write(client, "Unable to read config from IPC\n", 33) < 0) {
+		if (write(client, "Unable to read config from IPC\n", 32) < 0) {
 			fprintf(stderr, "Error replying to ipc command\n");
 		}
 		close(client);
