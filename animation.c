@@ -28,12 +28,13 @@ static bool set_timer_milliseconds(int timer_fd, unsigned int delay) {
 static void scale_image_onto(
 		cairo_t * cairo,
 		cairo_surface_t * source,
-		cairo_filter_t filter,
-		int32_t buffer_width,
-		int32_t buffer_height,
-		int anchor) {  // TODO: Probably should re-expose this enum.
-	// TODO: I guess I should implement the other scaling modes as well even
-	// though fill is the only correct one.
+		oguri_output * output) {
+	// TODO: Store scaled width/height on buffer so we only need to pass config
+	int32_t buffer_width = output->width * output->scale;
+	int32_t buffer_height = output->height * output->scale;
+	int anchor = output->config->anchor;
+	cairo_filter_t filter = output->config->filter;
+
 	double width = cairo_image_surface_get_width(source);
 	double height = cairo_image_surface_get_height(source);
 
@@ -134,13 +135,7 @@ int oguri_render_frame(struct oguri_animation * anim) {
 			oguri_cairo_surface_paint_pixbuf(anim->source_surface, image);
 
 			// Then scale it into the buffer.
-			scale_image_onto(
-					buffer->cairo,
-					anim->source_surface,
-					output->config->filter,
-					output->width * output->scale,
-					output->height * output->scale,
-					output->config->anchor);
+			scale_image_onto(buffer->cairo, anim->source_surface, output);
 
 			wl_surface_set_buffer_scale(output->surface, output->scale);
 
