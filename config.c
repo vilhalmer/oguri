@@ -13,6 +13,7 @@
 #include "oguri.h"
 
 static char * expand_config_path(const char * path) {
+	// TODO: Return perror messages to caller for nicer display
 	if (!getenv("XDG_CONFIG_HOME")) {
 		char * home = getenv("HOME");
 		if (!home) {
@@ -97,8 +98,15 @@ bool configure_output(
 	}
 
 	if (strcmp(property, "image") == 0) {
+		char * expanded = expand_config_path(value);
+		if (access(expanded, R_OK)) {
+			fprintf(stderr, "Unable to access image '%s'\n", value);
+			free(expanded);
+			return false;
+		}
+
 		free(output->image_path);
-		output->image_path = expand_config_path(value);
+		output->image_path = expanded;
 		return true;
 	}
 	else if (strcmp(property, "scaling-mode") == 0) {
