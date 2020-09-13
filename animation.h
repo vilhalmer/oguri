@@ -1,5 +1,5 @@
-#ifndef _OGURI_ANIMATION_H
-#define _OGURI_ANIMATION_H
+#ifndef OGURI_ANIMATION_H
+#define OGURI_ANIMATION_H
 
 #include <poll.h>
 #include <cairo.h>

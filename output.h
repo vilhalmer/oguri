@@ -1,5 +1,5 @@
-#ifndef _OGURI_OUTPUT_H
-#define _OGURI_OUTPUT_H
+#ifndef OGURI_OUTPUT_H
+#define OGURI_OUTPUT_H
 
 #include <wayland-client.h>
 #include <cairo.h>

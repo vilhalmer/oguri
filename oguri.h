@@ -1,5 +1,5 @@
-#ifndef _OGURI_H
-#define _OGURI_H
+#ifndef OGURI_H
+#define OGURI_H
 
 #include <poll.h>
 #include <sys/un.h>

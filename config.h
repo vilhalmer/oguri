@@ -1,5 +1,5 @@
-#ifndef _OGURI_CONFIG_H
-#define _OGURI_CONFIG_H
+#ifndef OGURI_CONFIG_H
+#define OGURI_CONFIG_H
 
 #include <stdbool.h>
 #include <stdio.h>
