@@ -300,12 +300,6 @@ void oguri_animation_destroy(struct oguri_animation * anim) {
 	// happen until they are removed from the display, or we are told to exit.
 	wl_list_insert_list(&anim->oguri->idle_outputs, &anim->outputs);
 
-	// TODO: It seems like we should do something about closing the timerfd
-	// in here. However, this will make poll unhappy, because it still has the
-	// same descriptor and expects all of its stuff to be open. We need a way
-	// to signal the poll loop to clean it up on that end. Alternatively we
-	// could keep a pointer to the entire pollfd.
-
 	anim->oguri = NULL;
 	free(anim);
 }
