@@ -455,6 +455,11 @@ int main(int argc, char * argv[]) {
 		oguri_output_destroy(output);
 	}
 
+	struct oguri_output_config * opc, * opc_tmp;
+	wl_list_for_each_safe(opc, opc_tmp, &oguri.output_configs, link) {
+	    oguri_output_config_destroy(opc);
+	}
+
 	oguri_ipc_destroy(&oguri);
 
 	zxdg_output_manager_v1_destroy(oguri.output_manager);

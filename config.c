@@ -51,6 +51,36 @@ static char * expand_config_path(const char * path) {
 }
 
 //
+// Output configs
+//
+
+struct oguri_output_config * oguri_output_config_create(
+		struct oguri_state * oguri, const char * output_name) {
+	struct oguri_output_config * opc = calloc(1, sizeof(struct oguri_output_config));
+	if (!opc) {
+		fprintf(stderr, "Failed to allocate memory for output config\n");
+		return false;
+	}
+	wl_list_init(&opc->link);
+	wl_list_insert(oguri->output_configs.prev, &opc->link);
+
+	opc->name = strdup(output_name);
+	opc->image_path = strdup("");
+	opc->scaling_mode = SCALING_MODE_FILL;
+	opc->anchor = ANCHOR_CENTER;
+	opc->filter = CAIRO_FILTER_BEST;
+
+	return opc;
+}
+
+void oguri_output_config_destroy(struct oguri_output_config * opc) {
+	wl_list_remove(&opc->link);
+	free(opc->image_path);
+	free(opc->name);
+	free(opc);
+}
+
+//
 // Configurators
 //
 
@@ -82,19 +112,7 @@ bool configure_output(
 	// If we didn't find one, make a new one.
 	// TODO: Should we avoid creating this until the property is validated?
 	if (!output) {
-		output = calloc(1, sizeof(struct oguri_output_config));
-		if (!output) {
-			fprintf(stderr, "Failed to allocate memory for output config\n");
-			return false;
-		}
-		wl_list_init(&output->link);
-		wl_list_insert(oguri->output_configs.prev, &output->link);
-
-		output->name = strdup(output_name);
-		output->image_path = strdup("");
-		output->scaling_mode = SCALING_MODE_FILL;
-		output->anchor = ANCHOR_CENTER;
-		output->filter = CAIRO_FILTER_BEST;
+		output = oguri_output_config_create(oguri, output_name);
 	}
 
 	if (strcmp(property, "image") == 0) {

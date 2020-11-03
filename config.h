@@ -30,6 +30,11 @@ struct oguri_output_config {
 	} anchor;
 };
 
+
+struct oguri_output_config * oguri_output_config_create(
+		struct oguri_state * oguri, const char * output_name);
+void oguri_output_config_destroy(struct oguri_output_config * opc);
+
 typedef bool oguri_configurator_t(struct oguri_state *, char *, char *, char *);
 oguri_configurator_t * configurator_from_string(const char * name);
 
