@@ -117,6 +117,7 @@ static void scale_image_onto(
 	cairo_pattern_set_filter(pattern, filter);
 	cairo_set_source(cairo, pattern);
 	cairo_paint(cairo);
+	cairo_pattern_destroy(pattern);
 
 	cairo_restore(cairo);
 }
