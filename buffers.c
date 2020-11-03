@@ -35,6 +35,7 @@ static int pid_shm_open(const char * prefix, int oflag, mode_t mode) {
 	}
 
 	shm_unlink(name);
+	free(name);
 	return fd;
 }
 
