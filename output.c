@@ -234,5 +234,6 @@ void oguri_output_destroy(struct oguri_output * output) {
 		oguri_buffer_destroy(buffer);
 	}
 
+	wl_output_destroy(output->output);
 	free(output);
 }
