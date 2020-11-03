@@ -291,8 +291,8 @@ int main(int argc, char * argv[]) {
 		perror("Unable to create pipe for signal handler");
 		return 1;
 	}
-	struct sigaction act;
-    act.sa_handler = &signal_handler;
+	struct sigaction act = {0};
+	act.sa_handler = &signal_handler;
 	int error = sigaction(SIGINT, &act, NULL);
 	error += sigaction(SIGTERM, &act, NULL);
 	error += sigaction(SIGQUIT, &act, NULL);
