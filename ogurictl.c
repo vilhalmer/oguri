@@ -123,16 +123,19 @@ int main(int argc, char * argv[]) {
 	}
 	else {
 		fprintf(stderr, "Unknown command '%s'\n\n%s", subcommand, usage);
+		free(buffer);
 		return 1;
 	}
 
 	if (subcommand_return != 0) {
+		free(buffer);
 		return subcommand_return;
 	}
 
 	int sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (sock_fd == -1) {
 		perror("Unable to create socket");
+		free(buffer);
 		return 1;
 	}
 
@@ -151,6 +154,7 @@ int main(int argc, char * argv[]) {
 	int len = snprintf(remote.sun_path, path_size, "%s/oguri", runtime);
 	if (path_size <= len) {
 		fprintf(stderr, "Socket path is too long, unable to connect\n");
+		free(buffer);
 		return 1;
 	}
 
@@ -158,6 +162,7 @@ int main(int argc, char * argv[]) {
 			sock_fd, (struct sockaddr *)&remote, sizeof(remote));
 	if (connected == -1) {
 		perror("Unable to connect to oguri socket");
+		free(buffer);
 		return 1;
 	}
 
@@ -179,10 +184,12 @@ int main(int argc, char * argv[]) {
 		// oguri had nothing to say.
 	}
 
+	free(buffer);
 	close(sock_fd);
 	return 0;
 
 close_err:
+	free(buffer);
 	close(sock_fd);
 	return 1;
 }
