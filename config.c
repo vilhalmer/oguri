@@ -12,6 +12,23 @@
 #include "config.h"
 #include "oguri.h"
 
+static char * expand_tilde(const char * path) {
+	if (strchr(path, '~') != path) {
+		return strdup(path);
+	}
+
+	char * home = getenv("HOME");
+	if (home == NULL || strcmp(home, "") == 0) {
+		fprintf(stderr, "$HOME is not set, cannot expand ~\n");
+		return NULL;
+	}
+
+	int length = snprintf(NULL, 0, "%s/%s", home, path + 1);
+	char * expanded = calloc(length, sizeof(char));
+	sprintf(expanded, "%s/%s", home, path + 1);
+	return expanded;
+}
+
 static char * expand_config_path(const char * path) {
 	// TODO: Return perror messages to caller for nicer display
 	if (!getenv("XDG_CONFIG_HOME")) {
@@ -26,9 +43,8 @@ static char * expand_config_path(const char * path) {
 	}
 
 	wordexp_t p = {0};
-
 	errno = 0;
-	if (wordexp(path, &p, WRDE_UNDEF) != 0 || errno != 0) {
+	if (wordexp(path, &p, WRDE_UNDEF|WRDE_NOCMD) != 0 || errno != 0) {
 		perror("Shell expansion error");
 		wordfree(&p);
 		return NULL;
@@ -116,7 +132,7 @@ bool configure_output(
 	}
 
 	if (strcmp(property, "image") == 0) {
-		char * expanded = expand_config_path(value);
+		char * expanded = expand_tilde(value);
 		if (access(expanded, R_OK)) {
 			fprintf(stderr, "Unable to access image '%s'\n", value);
 			free(expanded);
