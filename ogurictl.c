@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <getopt.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -10,115 +11,123 @@
 
 
 static const char usage[] =
-	"Usage: ogurictl output [<options>] <name>\n"
+	"Usage: ogurictl output NAME [<options>]\n"
 	"       ogurictl [--help] [--version]\n"
 	"\n"
-	"Output options\n"
-	"  <name>          The name of the output to configure\n"
+	"Output options:\n"
 	"  --anchor        Sides to which the image should be anchored\n"
-	"  --filter	       Scaling filter to apply to the image\n"
+	"  --filter        Scaling filter to apply to the image\n"
 	"  --image         Path to the image to show on this output\n"
 	"  --scaling-mode  Method used to fit the image to the output\n"
 	"\n"
-	"General options\n"
+	"General options:\n"
 	"  -V, --version   Show the version of oguri\n"
 	"  -h, --help      Show this text\n"
 	"\n"
-	"For the available values for each option, consult oguri(5)\n";
+	"For the available values for each option, consult oguri(5).\n";
 
 
-int main(int argc, char * argv[]) {
-	if (argc < 2) {
-		fprintf(stderr, usage);
+static const struct option general_options[] = {
+	{"help", no_argument, 0, 0},
+	{"version", no_argument, 0, 0},
+	{0},
+};
+
+
+static struct option output_options[] = {
+	{"anchor", required_argument, 0, 0},
+	{"filter", required_argument, 0, 0},
+	{"image", required_argument, 0, 0},
+	{"scaling-mode", required_argument, 0, 0},
+	{0},
+};
+
+
+int handle_output(int argc, char * argv[], char ** buffer, unsigned long * buffer_size) {
+	if (optind >= argc) {
+		fprintf(stderr, "No output name provided!\n\n%s", usage);
 		return 1;
 	}
 
-	// Attempt to parse the options into a command.
+	char * output_name = argv[optind++];
 
-	int argi = 1;
-	char * arg = argv[argi];
-	if (strcmp(arg, "--help") == 0 || strcmp(arg, "-h") == 0) {
+	int buffer_loc = 0;
+
+	buffer_loc += snprintf(
+			*buffer + buffer_loc,
+			*buffer_size - buffer_loc,
+			"[output %s]\n",
+			output_name);
+
+	int opt_result, opt_index;
+	opterr = 0;  // Clarify that we're looking at output options in the errors.
+	for (;;) {
+		opt_result = getopt_long(argc, argv, ":", output_options, &opt_index);
+
+		if (opt_result == '?') {
+			fprintf(stderr,
+					"%s: unrecognized output option '%s'\n\n%s",
+					argv[0], argv[optind - 1], usage);
+			return 1;
+		}
+		else if (opt_result == ':') {
+			fprintf(stderr,
+					"%s: output option '%s' requires an argument\n\n%s",
+					argv[0], argv[optind - 1], usage);
+			return 1;
+		}
+		else if (opt_result == -1) {
+			break;
+		}
+
+    	buffer_loc += snprintf(
+    			*buffer + buffer_loc,
+				*buffer_size - buffer_loc,
+    			"%s=%s\n",
+				output_options[opt_index].name,
+				optarg);
+	}
+
+	return 0;
+}
+
+
+int main(int argc, char * argv[]) {
+	int opt_char, opt_index = -1;
+	opt_char = getopt_long(argc, argv, "+hV", general_options, &opt_index);
+	if (opt_char == 'h' || opt_index == 0) {
 		printf("%s", usage);
 		return 0;
 	}
-	else if (strcmp(arg, "--version") == 0 || strcmp(arg, "-V") == 0) {
+	else if (opt_char == 'V' || opt_index == 1) {
 		printf("1.0\n");  // TODO: Dynamic
 		return 0;
 	}
 
-	char buffer[1024] = {0};  // Matches the length on the oguri side.
-	int buffer_loc = 0;
-
-	buffer_loc += snprintf(
-			buffer + buffer_loc, sizeof(buffer) - buffer_loc, "[%s ", arg);
-	++argi;
-
-	// We need to find the name argument, which might be anywhere along the
-	// command line. We're just going to loop twice to make things easier.
-
-	int name_i = 0;
-	for (; argi < argc; ++argi) {
-		arg = argv[argi];
-
-		// Skip each option and its value, which may be in the same arg or the
-		// next one depending on whether it was specified with an equal sign.
-		if (strncmp(arg, "--", 2) == 0) {
-			if (strchr(arg, '=') == NULL) {
-				++argi;
-			}
-			continue;
-		}
-
-		buffer_loc += snprintf(
-				buffer + buffer_loc, sizeof(buffer) - buffer_loc,
-				"%s]\n", arg);
-		name_i = argi;
-		break;
-	}
-
-	if (name_i == 0) {
-		fprintf(stderr, "No name provided\n");
+	if (optind >= argc) {
+		fprintf(stderr, "%s", usage);
 		return 1;
 	}
 
-	// Now start over to process the options, skipping the name.
+	char * subcommand = argv[optind++];
 
-	for (argi = 2; argi < argc; ++argi) {
-		if (argi == name_i) {
-			continue;
-		}
-		arg = argv[argi];
+	// Create an initial buffer, the subcommand may need to resize it.
+	unsigned long buffer_size = 1024;
+	char * buffer = calloc(buffer_size, sizeof(char));
 
-		if (strncmp(arg, "--", 2) != 0) {
-			fprintf(stderr, "Invalid non-option: '%s'\n", arg);
-			return 1;
-		}
+	// Since getopt state is global, we can just continue working in a
+	// command-specific function.
+	int subcommand_return = 0;
+	if (strcmp(subcommand, "output") == 0) {
+		subcommand_return = handle_output(argc, argv, &buffer, &buffer_size);
+	}
+	else {
+		fprintf(stderr, "Unknown command '%s'\n\n%s", subcommand, usage);
+		return 1;
+	}
 
-		// If this option has an equal sign, it means the value is part of the
-		// same argi. If not, it's the next one and we need to insert the
-		// equal sign ourselves, then consume an extra argi.
-
-		buffer_loc += snprintf(
-				buffer + buffer_loc, sizeof(buffer) - buffer_loc,
-				"%s", &arg[2]);
-
-		if (strchr(arg, '=') == NULL) {
-			// Consume the next option and append it.
-			++argi;
-			if (argi >= argc) {
-				fprintf(stderr, "No value for option '%s'\n", arg);
-				return 1;
-			}
-			arg = argv[argi];
-
-			buffer_loc += snprintf(
-					buffer + buffer_loc, sizeof(buffer) - buffer_loc,
-					"=%s", arg);
-		}
-
-		// Finish off the option with a newline.
-
-		buffer_loc += snprintf(buffer + buffer_loc, 2, "\n");
+	if (subcommand_return != 0) {
+		return subcommand_return;
 	}
 
 	int sock_fd = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -152,12 +161,12 @@ int main(int argc, char * argv[]) {
 		return 1;
 	}
 
-	if (send(sock_fd, buffer, strnlen(buffer, sizeof(buffer) - 1), 0) == -1) {
+	if (send(sock_fd, buffer, strnlen(buffer, buffer_size - 1), 0) == -1) {
 		perror("Unable to send command to oguri");
 		goto close_err;
 	}
 
-	int recv_len = recv(sock_fd, buffer, sizeof(buffer) - 1, 0);
+	int recv_len = recv(sock_fd, buffer, buffer_size - 1, 0);
 	if (recv_len < 0) {
 		perror("Unable to read response from oguri");
 		goto close_err;
