@@ -27,6 +27,7 @@
 #include "animation.h"
 #include "config.h"
 #include "output.h"
+#include "oguri_ipc.h"
 
 //
 // Signal handler
@@ -147,19 +148,41 @@ static void oguri_ipc_handle_command(
 	}
 
 	FILE * ipc_config = fdopen(config_fd, "r");
-	int loaded = load_config(oguri, ipc_config, "ipc");
-	if (loaded == -1) {
-		// TODO: Expose the error messages instead of writing them to oguri's
-		// stderr, where they will go nowhere.
-		if (write(client, "Invalid configuration\n", 23) < 0) {
-			fprintf(stderr, "Error replying to ipc command\n");
-		}
-	}
+  enum oguri_ipc_command cmd = OGURI_NOT_IPC_COMMAND;
+  cmd = fgetc(ipc_config);
+  if (cmd == OGURI_NOT_IPC_COMMAND)
+  {
+    fprintf(stderr, "Did not receive ipc command\n");
+  }
+  else
+  {
+    switch (cmd)
+    {
+      case OGURI_IPC_CONFIGURE:
+        int loaded = load_config(oguri, ipc_config, "ipc");
+        if (loaded == -1) {
+          // TODO: Expose the error messages instead of writing them to oguri's
+          // stderr, where they will go nowhere.
+          if (write(client, "Invalid configuration\n", 23) < 0) {
+            fprintf(stderr, "Error replying to ipc command\n");
+          }
+        }
 
-	// TODO: If there was an error reading the config, we might have partially
-	// applied it. We're going to reconfig so that nothing gets out of sync
-	// internally, but this should be fixed in the config handlers.
-	oguri_reconfigure(oguri);
+        // TODO: If there was an error reading the config, we might have partially
+        // applied it. We're going to reconfig so that nothing gets out of sync
+        // internally, but this should be fixed in the config handlers.
+        oguri_reconfigure(oguri, false);
+        break;
+      case OGURI_IPC_RELOAD_IMAGES:
+        oguri_reconfigure(oguri, true);
+        break;
+      default:
+        fprintf(stderr, "Unknown ipc command: %d\n", cmd);
+        break;
+    }
+  }
+  // close FILE, if we didn't do that before
+	if (fileno(ipc_config) >= 0) fclose(ipc_config);
 
 	close(client);
 	oguri->events[OGURI_IPC_CLIENT_EVENT].fd = -1;
@@ -179,7 +202,7 @@ static void oguri_ipc_handle_command(
 //
 // This is not particularly efficient, but it's extremely simple which makes it
 // unlikely to introduce bugs. We also don't have that many outputs.
-void oguri_reconfigure(struct oguri_state * oguri) {
+void oguri_reconfigure(struct oguri_state * oguri, bool reload_cache) {
 	// Return all outputs to the idle list.
 	struct oguri_animation * anim;
 	wl_list_for_each(anim, &oguri->animations, link) {
@@ -220,7 +243,7 @@ void oguri_reconfigure(struct oguri_state * oguri) {
 				}
 			}
 
-			if (!found_anim) {
+			if (!found_anim || reload_cache) {
 				// No animation exists, so make one. Note that this may still
 				// fail, in which case this output will become idle.
 				// TODO: It would be better to get any possible failures out of
@@ -342,7 +365,7 @@ int main(int argc, char * argv[]) {
 		return 1;
 	}
 
-	oguri_reconfigure(&oguri);
+	oguri_reconfigure(&oguri, false);
 
 	oguri.run = true;
 	while (oguri.run) {

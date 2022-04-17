@@ -212,7 +212,7 @@ struct oguri_output * oguri_output_create(
 	wl_display_roundtrip(oguri->display);
 
 	wl_list_insert(oguri->idle_outputs.prev, &output->link);
-	oguri_reconfigure(oguri);
+	oguri_reconfigure(oguri, false);
 
 	return output;
 }
