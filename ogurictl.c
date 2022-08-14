@@ -8,17 +8,21 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include "oguri_ipc.h"
 
 
 static const char usage[] =
-	"Usage: ogurictl output NAME [<options>]\n"
+	"Usage: ogurictl COMMAND\n"
 	"       ogurictl [--help] [--version]\n"
 	"\n"
-	"Output options:\n"
-	"  --anchor        Sides to which the image should be anchored\n"
-	"  --filter        Scaling filter to apply to the image\n"
-	"  --image         Path to the image to show on this output\n"
-	"  --scaling-mode  Method used to fit the image to the output\n"
+	"Available commands:\n"
+	"  output NAME [<options>]\n"
+	"    --anchor        Sides to which the image should be anchored\n"
+	"    --filter        Scaling filter to apply to the image\n"
+	"    --image         Path to the image to show on this output\n"
+	"    --scaling-mode  Method used to fit the image to the output\n"
+	"\n"
+	"  reload\n"
 	"\n"
 	"General options:\n"
 	"  -V, --version   Show the version of oguri\n"
@@ -91,6 +95,11 @@ int handle_output(int argc, char * argv[], char ** buffer, unsigned long * buffe
 	return 0;
 }
 
+static enum oguri_ipc_command parse_subcommand(char * subcommand) {
+  if (strcmp(subcommand, "output") == 0) return OGURI_IPC_CONFIGURE;
+  if (strcmp(subcommand, "reload") == 0) return OGURI_IPC_RELOAD_IMAGES;
+  return OGURI_NOT_IPC_COMMAND;
+}
 
 int main(int argc, char * argv[]) {
 	int opt_char, opt_index = -1;
@@ -118,13 +127,19 @@ int main(int argc, char * argv[]) {
 	// Since getopt state is global, we can just continue working in a
 	// command-specific function.
 	int subcommand_return = 0;
-	if (strcmp(subcommand, "output") == 0) {
-		subcommand_return = handle_output(argc, argv, &buffer, &buffer_size);
-	}
-	else {
-		fprintf(stderr, "Unknown command '%s'\n\n%s", subcommand, usage);
-		free(buffer);
-		return 1;
+  char * cmd = calloc(1, sizeof(char));
+  cmd [0] = parse_subcommand(subcommand);
+
+	switch (cmd[0]) {
+    case OGURI_IPC_CONFIGURE:
+      subcommand_return = handle_output(argc, argv, &buffer, &buffer_size);
+      break;
+    case OGURI_IPC_RELOAD_IMAGES:
+      break;
+    default:
+      fprintf(stderr, "Unknown command '%s'\n\n%s", subcommand, usage);
+      free(buffer);
+      return 1;
 	}
 
 	if (subcommand_return != 0) {
@@ -166,8 +181,12 @@ int main(int argc, char * argv[]) {
 		return 1;
 	}
 
+	if (send(sock_fd, cmd, 1, 0) == -1) {
+		perror("Unable to send command type to oguri");
+		goto close_err;
+	}
 	if (send(sock_fd, buffer, strnlen(buffer, buffer_size - 1), 0) == -1) {
-		perror("Unable to send command to oguri");
+		perror("Unable to send command data to oguri");
 		goto close_err;
 	}
 

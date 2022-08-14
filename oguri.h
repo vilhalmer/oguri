@@ -38,6 +38,6 @@ struct oguri_state {
 	struct wl_list animations;  // oguri_animation::link
 };
 
-void oguri_reconfigure(struct oguri_state * oguri);
+void oguri_reconfigure(struct oguri_state * oguri, bool reload_cache);
 
 #endif
