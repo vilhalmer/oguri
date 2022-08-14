@@ -305,7 +305,10 @@ int main(int argc, char * argv[]) {
 	signal(SIGPIPE, SIG_IGN);
 
 	oguri.display = wl_display_connect(NULL);
-	assert(oguri.display);
+	if (!oguri.display) {
+		fprintf(stderr, "Unable to create wayland display connection. Is wayland running?\n");
+		return 1;
+	}
 
 	oguri.events[OGURI_SIGNAL_EVENT] = (struct pollfd) {
 		.fd = signal_pipe[0],
