@@ -1,14 +1,30 @@
 # oguri
 ### A very nice animated wallpaper daemon for Wayland compositors
 
-[![builds.sr.ht status](https://builds.sr.ht/~vilhalmer/oguri.svg)](https://builds.sr.ht/~vilhalmer/oguri?)
-
 	>> oguri -h
 	Usage: oguri [-c <config-path>]
 
 	  -c  Path to the configuration file to use.
 		  (default: $XDG_CONFIG_HOME/oguri/config)
 	  -h  Show this text.
+
+## Notice: unmaintained!
+
+You may have noticed that oguri hasn't gotten much attention for a while. It
+was never really intended to be a thing people actually used, I wrote it
+originally to learn the Wayland protocol. Lately I haven't had much time for
+personal projects at all, and so it has languished. There are a couple
+alternatives I'm aware of, please check them out:
+
+- [swww](https://github.com/Horus645/swww), a direct replacement
+- [mpvpaper](https://github.com/GhostNaN/mpvpaper) if you want real video
+
+Feel free to fork if you like this codebase for some reason, but as of now I
+can't imagine getting back to working on it. If you've used it in the past,
+thanks! I didn't think this would actually be useful to anyone, so it's cool
+that it was.
+
+The rest of the README remains below:
 
 ## Features
 
